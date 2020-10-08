@@ -8,6 +8,16 @@ public class IPLayer implements BaseLayer{
 	public BaseLayer p_UnderLayer = null;
 	public ArrayList<BaseLayer> p_aUpperLayer = new ArrayList<BaseLayer>();
 	
+	private class _IP_ADDR {
+		private byte[] addr = new byte[4];
+		
+		public _IP_ADDR() {
+			this.addr[0] = (byte) 0x00;
+			this.addr[1] = (byte) 0x00;
+			this.addr[2] = (byte) 0x00;
+			this.addr[3] = (byte) 0x00;
+		}
+	}
 
 	public IPLayer(String pName) {
 		// super(pName);

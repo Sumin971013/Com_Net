@@ -45,54 +45,120 @@ public class EthernetLayer implements BaseLayer {
 
 	public EthernetLayer(String pName) {
 		// super(pName);
-		// TODO Auto-generated constructor stub
 		pLayerName = pName;
-		
 	}
 
 
 	public boolean Send(byte[] input, int length) {
-	
-
-		return false;
+		byte[] bytes;
+		m_sHeader.enet_data = input;
+		
+		if(input[6] == 0x00 && input[7] == 0x01) {
+			// Opcode 0x0001
+			// ARP Request Message => Protocol Type 0x0806
+			m_sHeader.enet_type[0] = (byte) 0x08;
+			m_sHeader.enet_type[1] = (byte) 0x06;
+		}
+		else if (input[6] == 0x00 && input[7] == 0x02) {
+			// Opcode 0x0002
+			// ARP Reply Message => Protocol Type 0x0806
+			m_sHeader.enet_type[0] = (byte) 0x08;
+			m_sHeader.enet_type[1] = (byte) 0x06;
+		}
+		else {
+			// Opcode 0x0000
+			// Normal Data Message => Protocol Type 0x0800
+			m_sHeader.enet_type[0] = (byte) 0x08;
+			m_sHeader.enet_type[1] = (byte) 0x00;
+		}
+		
+		bytes = ObjToByte(m_sHeader, input.length);
+		
+		if(this.GetUnderLayer().Send(bytes, bytes.length))
+			return true;
+		else
+			return false;
+		
 	}
 
 	
 
 	public boolean Receive(byte[] input) {
+		byte[] bytes;
 		
+		if (input[12] == 0x08 && input[13] == 0x06) {
+			// Protocol Type 0x0806
+			// ARP Message ( Request or Reply ) 인 경우
+		}
+		else if (input[12] == 0x08 && input[13] == 0x00) {
+			// Protocol Type 0x0800
+			// IPv4 Message
+		}
 		return true;
+	}
+	
+	public byte[] ObjToByte(_ETHERNET_HEADER Header, int length) {
+		byte[] buf = new byte[length + 14];
+
+		buf[0] = Header.enet_dstaddr.addr[0];	// Dst Address
+		buf[1] = Header.enet_dstaddr.addr[1];
+		buf[2] = Header.enet_dstaddr.addr[2];
+		buf[3] = Header.enet_dstaddr.addr[3];
+		buf[4] = Header.enet_dstaddr.addr[4];
+		buf[5] = Header.enet_dstaddr.addr[5];
+
+		buf[6] = Header.enet_srcaddr.addr[0];	// Src Address
+		buf[7] = Header.enet_srcaddr.addr[1];
+		buf[8] = Header.enet_srcaddr.addr[2];
+		buf[9] = Header.enet_srcaddr.addr[3];
+		buf[10] = Header.enet_srcaddr.addr[4];
+		buf[11] = Header.enet_srcaddr.addr[5];
+
+		buf[12] = Header.enet_type[0];
+		buf[13] = Header.enet_type[1];
+
+		for (int i = 0; i < length; i++)
+			buf[14 + i] = Header.enet_data[i];
+
+		return buf;
 	}
 
 	@Override
 	public void SetUnderLayer(BaseLayer pUnderLayer) {
-	
+		if(pUnderLayer == null)
+			return;
+		this.p_UnderLayer = pUnderLayer;
 	}
 
 	@Override
 	public void SetUpperLayer(BaseLayer pUpperLayer) {
-		
+		if(pUpperLayer == null)
+			return;
+		this.p_aUpperLayer.add(nUpperLayerCount++, pUpperLayer);
 	}
 
 	@Override
 	public String GetLayerName() {
-		// TODO Auto-generated method stub
 		return pLayerName;
 	}
 
 	@Override
 	public BaseLayer GetUnderLayer() {
-		return  null;
+		if (p_UnderLayer == null)
+			return null;
+		return p_UnderLayer;
 	}
 
 	@Override
 	public BaseLayer GetUpperLayer(int nindex) {
-		return null;
+		if (nindex < 0 || nindex > nUpperLayerCount || nUpperLayerCount < 0)
+			return null;
+		return p_aUpperLayer.get(nindex);
 	}
 
 	@Override
 	public void SetUpperUnderLayer(BaseLayer pUULayer) {
-		
-
+		this.SetUpperLayer(pUULayer);
+		pUULayer.SetUnderLayer(this);
 	}
 }

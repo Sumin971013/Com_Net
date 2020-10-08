@@ -28,6 +28,7 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 
 	private static LayerManager m_LayerMgr = new LayerManager();
 	int selected_index;
+	
 	private JTextField ChattingWrite;
 	private JTextField FileDir_path;
 
@@ -66,7 +67,7 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 	public ApplicationLayer(String pName) {
 		
 		pLayerName = pName;
-		setTitle("Chatting & File Transfer");
+		setTitle("Basic ARP");
 
 		setBounds(250, 250, 580, 400);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
