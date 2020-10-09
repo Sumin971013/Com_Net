@@ -11,9 +11,40 @@ public class ARPLayer implements BaseLayer{
 	public ArrayList<BaseLayer> p_aUpperLayer = new ArrayList<BaseLayer>();
 	
 	// ARP Cache Table
-	private Hashtable<String, Entry> ARP_CacheTable = new Hashtable<>();
+	private Hashtable<String, _ARPCache_Entry> _ARPCache_Table = new Hashtable<>();
+	private Hashtable<String, _Proxy_Entry> _Proxy_Table = new Hashtable<>();
 	
-
+	// Device's Info
+	public _IP_ADDR myIpAddress = new _IP_ADDR();
+	public _ETHERNET_ADDR myMacAddress = new _ETHERNET_ADDR();
+	
+	// ARP Cache Entry
+	// Ip 주소는 Table에서 Key로 가지고 있으므로 Mac Address와 Status, lifeTime만 보유
+	public class _ARPCache_Entry {
+		byte[] addr;
+		Boolean status;
+		int lifeTime;
+		
+		public _ARPCache_Entry(byte[] addr, Boolean status, int lifeTime) {
+			this.addr = addr;
+			this.status = status;
+			this.lifeTime = lifeTime;
+		}
+	}
+	
+	// Proxy Entry
+	// Ip주소는 Table에서 Key로 가지고 있으므로 Mac Address와 hostName만 보유
+	public class _Proxy_Entry {
+		String hostName;
+		byte[] addr;
+		
+		public _Proxy_Entry(byte[] addr, String hostName) {
+			this.hostName = hostName;
+			this.addr = addr;
+		}
+	}
+	
+	
 	public ARPLayer(String pName) {
 		// super(pName);
 		pLayerName = pName;
@@ -27,7 +58,6 @@ public class ARPLayer implements BaseLayer{
 			this.addr[1] = (byte) 0x00;
 			this.addr[2] = (byte) 0x00;
 			this.addr[3] = (byte) 0x00;
-
 		}
 		
 		@Override
@@ -165,6 +195,21 @@ public class ARPLayer implements BaseLayer{
 		return input;
 	}
 	
+	// isItMyARP 함수
+	// 수신한 ARP Message가 본인이 보낸 ARP Request/Reply인지 확인한다
+	private boolean isItMyARP(byte[] input) {
+		
+		return true;
+	}
+	
+	// isItMyProxy 함수
+	// 수신한 ARP Message의 mac주소가 자신이 보유하고 있는 Proxy의 Mac인지 검사하는 함수
+	private boolean isItMyProxy(byte[] input) {
+		
+		return false;
+	}
+	
+	// 
 	
 	
 	// BaseLayer Function
