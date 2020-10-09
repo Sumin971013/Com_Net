@@ -104,10 +104,10 @@ public class ARPLayer implements BaseLayer{
 		public _ARP_HEADER() {						// 28 Bytes
 			this.macType = new byte[2];				// 2 Bytes / 0 ~ 1
 			this.ipType = new byte[2];				// 2 Bytes / 2 ~ 3
-			this.macAddrLen = (byte) 0x00;			// 1 Byte / 4
-			this.ipAddrLen = (byte) 0x00;			// 1 Byte / 5
-			this.opcode = new byte[2];				// 2 Bytes / 6 ~ 7
-			this.srcMac = new _ETHERNET_ADDR();		// 6 Bytes / 8 ~ 13
+			this.macAddrLen = (byte) 0x00;			// 1 Byte  / 4
+			this.ipAddrLen = (byte) 0x00;			// 1 Byte  / 5
+			this.opcode = new byte[2];				// 2 Bytes / 6 ~ 7 
+			this.srcMac = new _ETHERNET_ADDR();		// 6 Bytes / 8 ~ 13 
 			this.srcIp = new _IP_ADDR();			// 4 Bytes / 14 ~ 17
 			this.dstMac = new _ETHERNET_ADDR();		// 6 Bytes / 18 ~ 23
 			this.dstIp = new _IP_ADDR();			// 4 Bytes / 24 ~ 27
