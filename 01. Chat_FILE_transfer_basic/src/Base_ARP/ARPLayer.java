@@ -19,33 +19,100 @@ public class ARPLayer implements BaseLayer{
 		pLayerName = pName;
 	}
 	
-	private static class ARPHeader {
+	private class _IP_ADDR {
+		private byte[] addr = new byte[4];
+		
+		public _IP_ADDR() {
+			this.addr[0] = (byte) 0x00;
+			this.addr[1] = (byte) 0x00;
+			this.addr[2] = (byte) 0x00;
+			this.addr[3] = (byte) 0x00;
+
+		}
+		
+		@Override
+		public String toString() {
+			String ipAddress = "";
+			
+			// addr에 가지고있는 byte를 가져와 Integer로 변환 후 .을 더함
+			for (byte b : this.addr) {
+				ipAddress += Integer.toString(b & 0xFF) + ".";
+			}
+			
+			// 마지막에 붙은 "."은 제거하여 return
+			return ipAddress.substring(0, ipAddress.length() - 1);
+		}
+	}
+	
+	private class _ETHERNET_ADDR {
+		private byte[] addr = new byte[6];
+		
+		public _ETHERNET_ADDR() {
+			this.addr[0] = (byte) 0x00;
+			this.addr[1] = (byte) 0x00;
+			this.addr[2] = (byte) 0x00;
+			this.addr[3] = (byte) 0x00;
+			this.addr[4] = (byte) 0x00;
+			this.addr[5] = (byte) 0x00;
+		}
+		
+		@Override
+		public String toString() {
+			String macAddress = "";
+			
+			// addr에 가지고 있는 byte 배열의 byte를 가져와 두 자리의
+			// mac Address String으로 변환하여 String에 더함
+			for (byte b : this.addr) {
+				macAddress += String.format("%02X", b);
+				macAddress += ":";
+			}
+			
+			// 마지막에 붙은 ":"는 제거하여 return
+			return macAddress.substring(0, macAddress.length() - 1);
+				
+		}
+	}
+	
+	private class _ARP_HEADER {
 		// Hardware Type
-		byte[] Hardware_type = new byte[2];
+		byte[] macType = new byte[2];
 		
 		// Protocol Type
-		byte[] Protocol_type = new byte[2];
+		byte[] ipType = new byte[2];
 		
 		// Length of hardware Address
-		byte Hardware_Adlen;
+		byte macAddrLen;
 		
 		// Length of protocol Address
-		byte Protocol_Adlen;
+		byte ipAddrLen;
 		
 		// Opcode (ARP Request)
-		byte[] Opcode = new byte[2];
+		byte[] opcode = new byte[2];
 		
 		// Sender's hardware Address
-		byte[] src_hardware_Address = new byte[2];
+		_ETHERNET_ADDR srcMac;
 		
 		// Sender's protocol Address
-		byte[] src_protocol_Address = new byte[4];
+		_IP_ADDR srcIp;
 		
 		// Target's hardware Address
-		byte[] dst_hardware_Address = new byte[2];
+		_ETHERNET_ADDR dstMac;
 		
 		// Target's protocol Address
-		byte[] dst_protocol_Address = new byte[4];
+		_IP_ADDR dstIp;
+		
+		public _ARP_HEADER() {						// 28 Bytes
+			this.macType = new byte[2];				// 2 Bytes / 0 ~ 1
+			this.ipType = new byte[2];				// 2 Bytes / 2 ~ 3
+			this.macAddrLen = (byte) 0x00;			// 1 Byte / 4
+			this.ipAddrLen = (byte) 0x00;			// 1 Byte / 5
+			this.opcode = new byte[2];				// 2 Bytes / 6 ~ 7
+			this.srcMac = new _ETHERNET_ADDR();		// 6 Bytes / 8 ~ 13
+			this.srcIp = new _IP_ADDR();			// 4 Bytes / 14 ~ 17
+			this.dstMac = new _ETHERNET_ADDR();		// 6 Bytes / 18 ~ 23
+			this.dstIp = new _IP_ADDR();			// 4 Bytes / 24 ~ 27
+			
+		}
 	}
 	
 	public boolean Send(byte[] input, int length) {
@@ -56,8 +123,46 @@ public class ARPLayer implements BaseLayer{
 	
 	public boolean Receive(byte[] input) {
 		// ARP Layer Receive
+		byte[] opcode = new byte[2];
+		
 		
 		return false;
+	}
+	
+	// Swaping 함수
+	// src와 dst의 Mac, Ip Address Swap
+	private byte[] Swaping(byte[] input) {
+		byte[] srcIp = new byte[6];
+		byte[] srcMac = new byte[4];
+		
+		byte[] dstIp = new byte[6];
+		byte[] dstMac = new byte[4];
+		
+		// 현재 Mac Address 저장
+		for (int idx = 0; idx < 4; idx++) {
+			srcMac[idx] = input[8 + idx];
+			dstMac[idx] = input[18 + idx];
+		}
+		
+		// 현재 IP Address 저장
+		for (int idx = 0; idx < 6; idx++) {
+			srcIp[idx] = input[14 + idx];
+			dstIp[idx] = input[24 + idx];
+		}
+		
+		// Swap된 Mac Address 입력
+		for (int idx = 0; idx < 4; idx++) {
+			input[8 + idx] = dstMac[idx];
+			input[18 + idx] = srcMac[idx];
+		}
+		
+		// Swap된 Ip Address 입력
+		for (int idx = 0; idx < 6; idx++) {
+			input[14 + idx] = dstIp[idx];
+			input[24 + idx] = srcIp[idx];
+		}
+		
+		return input;
 	}
 	
 	
