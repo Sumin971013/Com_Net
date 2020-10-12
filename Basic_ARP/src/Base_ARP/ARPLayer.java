@@ -10,7 +10,9 @@ public class ARPLayer implements BaseLayer{
 	public BaseLayer p_UnderLayer = null;
 	public ArrayList<BaseLayer> p_aUpperLayer = new ArrayList<BaseLayer>();
 	
-	// ARP Cache Table
+	_ARP_HEADER m_sHeader;
+	
+	// ARP Cache Table & Proxy Table
 	private Hashtable<String, _ARPCache_Entry> _ARPCache_Table = new Hashtable<>();
 	private Hashtable<String, _Proxy_Entry> _Proxy_Table = new Hashtable<>();
 	
@@ -44,10 +46,14 @@ public class ARPLayer implements BaseLayer{
 		}
 	}
 	
+	private void ResetHeader() {
+		m_sHeader = new _ARP_HEADER();
+	}
 	
 	public ARPLayer(String pName) {
 		// super(pName);
 		pLayerName = pName;
+		ResetHeader();
 	}
 	
 	private class _IP_ADDR {
@@ -93,8 +99,7 @@ public class ARPLayer implements BaseLayer{
 			// addr에 가지고 있는 byte 배열의 byte를 가져와 두 자리의
 			// mac Address String으로 변환하여 String에 더함
 			for (byte b : this.addr) {
-				macAddress += String.format("%02X", b);
-				macAddress += ":";
+				macAddress += String.format("%02X:", b);
 			}
 			
 			// 마지막에 붙은 ":"는 제거하여 return
@@ -104,32 +109,15 @@ public class ARPLayer implements BaseLayer{
 	}
 	
 	private class _ARP_HEADER {
-		// Hardware Type
-		byte[] macType = new byte[2];
-		
-		// Protocol Type
-		byte[] ipType = new byte[2];
-		
-		// Length of hardware Address
-		byte macAddrLen;
-		
-		// Length of protocol Address
-		byte ipAddrLen;
-		
-		// Opcode (ARP Request)
-		byte[] opcode = new byte[2];
-		
-		// Sender's hardware Address
-		_ETHERNET_ADDR srcMac;
-		
-		// Sender's protocol Address
-		_IP_ADDR srcIp;
-		
-		// Target's hardware Address
-		_ETHERNET_ADDR dstMac;
-		
-		// Target's protocol Address
-		_IP_ADDR dstIp;
+		byte[] macType = new byte[2];				// Hardware Type
+		byte[] ipType = new byte[2];				// Protocol Type
+		byte macAddrLen;							// Length of hardware Address
+		byte ipAddrLen;								// Length of protocol Address
+		byte[] opcode = new byte[2];				// Opcode (ARP Request)
+		_ETHERNET_ADDR srcMac;						// Sender's hardware Address
+		_IP_ADDR srcIp;								// Sender's protocol Address
+		_ETHERNET_ADDR dstMac;						// Target's hardware Address
+		_IP_ADDR dstIp;								// Target's protocol Address
 		
 		public _ARP_HEADER() {						// 28 Bytes
 			this.macType = new byte[2];				// 2 Bytes / 0 ~ 1
@@ -143,6 +131,41 @@ public class ARPLayer implements BaseLayer{
 			this.dstIp = new _IP_ADDR();			// 4 Bytes / 24 ~ 27
 			
 		}
+	}
+	
+	private byte[] ObjToByte(_ARP_HEADER Header) {
+		byte[] buf = new byte[28];
+		
+		buf[0] = Header.macType[0];
+		buf[1] = Header.macType[1];
+		buf[2] = Header.ipType[0];
+		buf[3] = Header.ipType[1];
+		buf[4] = Header.macAddrLen;
+		buf[5] = Header.ipAddrLen;
+		buf[6] = Header.opcode[0];
+		buf[7] = Header.opcode[1];
+		buf[8] = Header.srcMac.addr[0];
+		buf[9] = Header.srcMac.addr[1];
+		buf[10] = Header.srcMac.addr[2];
+		buf[11] = Header.srcMac.addr[3];
+		buf[12] = Header.srcMac.addr[4];
+		buf[13] = Header.srcMac.addr[5];
+		buf[14] = Header.srcIp.addr[0];
+		buf[15] = Header.srcIp.addr[1];
+		buf[16] = Header.srcIp.addr[2];
+		buf[17] = Header.srcIp.addr[3];
+		buf[18] = Header.dstMac.addr[0];
+		buf[19] = Header.dstMac.addr[1];
+		buf[20] = Header.dstMac.addr[2];
+		buf[21] = Header.dstMac.addr[3];
+		buf[22] = Header.dstMac.addr[4];
+		buf[23] = Header.dstMac.addr[5];
+		buf[24] = Header.dstIp.addr[0];
+		buf[25] = Header.dstIp.addr[1];
+		buf[26] = Header.dstIp.addr[2];
+		buf[27] = Header.dstIp.addr[3];
+		
+		return buf;
 	}
 	
 	public boolean Send(byte[] input, int length) {
