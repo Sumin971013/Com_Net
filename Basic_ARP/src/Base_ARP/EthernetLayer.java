@@ -13,6 +13,8 @@ public class EthernetLayer implements BaseLayer {
 	public String pLayerName = null;
 	public BaseLayer p_UnderLayer = null;
 	public ArrayList<BaseLayer> p_aUpperLayer = new ArrayList<BaseLayer>();
+	
+	_ETHERNET_HEADER m_sHeader = new _ETHERNET_HEADER();
 
 	private class _ETHERNET_ADDR {
 		private byte[] addr = new byte[6];
@@ -41,11 +43,14 @@ public class EthernetLayer implements BaseLayer {
 		}
 	}
 
-	_ETHERNET_HEADER m_sHeader = new _ETHERNET_HEADER();
-
 	public EthernetLayer(String pName) {
 		// super(pName);
 		pLayerName = pName;
+		ResetHeader();
+	}
+	
+	private void ResetHeader() {
+		m_sHeader = new _ETHERNET_HEADER();
 	}
 
 
@@ -80,8 +85,6 @@ public class EthernetLayer implements BaseLayer {
 			return false;
 		
 	}
-
-	
 
 	public boolean Receive(byte[] input) {
 		byte[] bytes;
