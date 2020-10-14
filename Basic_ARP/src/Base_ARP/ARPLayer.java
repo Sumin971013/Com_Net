@@ -109,11 +109,11 @@ public class ARPLayer implements BaseLayer{
 	}
 	
 	private class _ARP_HEADER {
-		byte[] macType = new byte[2];				// Hardware Type
-		byte[] ipType = new byte[2];				// Protocol Type
+		byte[] macType;								// Hardware Type
+		byte[] ipType;								// Protocol Type
 		byte macAddrLen;							// Length of hardware Address
 		byte ipAddrLen;								// Length of protocol Address
-		byte[] opcode = new byte[2];				// Opcode (ARP Request)
+		byte[] opcode;								// Opcode (ARP Request)
 		_ETHERNET_ADDR srcMac;						// Sender's hardware Address
 		_IP_ADDR srcIp;								// Sender's protocol Address
 		_ETHERNET_ADDR dstMac;						// Target's hardware Address
