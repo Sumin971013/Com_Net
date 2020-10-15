@@ -1,6 +1,7 @@
 package Base_ARP;
 
 import java.awt.Color;
+import java.util.StringTokenizer;
 import java.awt.Container;
 import java.awt.FileDialog;
 import java.awt.event.ActionEvent;
@@ -281,7 +282,16 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 			if (e.getSource() == Btn_ARPSend) {
 				String ip_input = TF_IPAddress.getText();
 				if(ipValidationCheck(ip_input)) {
-					((TCPLayer) m_LayerMgr.GetLayer("TCP")).Send(null, 0);
+					
+					
+					
+					// 주소 박스에 입력한 아이피 주소를 arp 헤더의 dst 주소로 설정을 하고 
+					((ARPLayer) m_LayerMgr.GetLayer("ARP")).setDstIp(strToByteArrayIp(TF_IPAddress.getText()));
+					((TCPLayer) m_LayerMgr.GetLayer("TCP")).Send("".getBytes(), 0);
+					
+					
+					
+					
 				} else {
 					System.out.println("유효하지 않은 IP 입력입니다 : " + ip_input);
 				}
@@ -311,6 +321,31 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 		}
 		
 	}
+	
+	
+	// IP 주소 텍스트창에 입력한거 byte 배열로 바꿔줌 
+		public byte[] strToByteArrayIp(String str) {
+			byte[] bytes = new byte[4];
+			StringTokenizer st = new StringTokenizer(str, ".");
+
+			for (int i = 0; i < 4; i++)
+				bytes[i] = (byte) Integer.parseInt(st.nextToken());
+
+			return bytes;
+		}
+
+		// MAC 주소 str 입력 받은거 byte 배열로 바꿔 줌   
+		public byte[] strToByteArrayMac(String str) {
+			byte[] byteMACAddr = new byte[6];
+			String[] byte_dst = str.split(":");
+			
+			for (int i = 0; i < 6; i++) {
+				byteMACAddr[i] = (byte) Integer.parseInt(byte_dst[i], 16);
+			}
+
+			return byteMACAddr;
+		}
+
 	
 	
 

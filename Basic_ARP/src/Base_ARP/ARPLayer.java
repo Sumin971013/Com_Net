@@ -203,6 +203,23 @@ public class ARPLayer implements BaseLayer{
 		return false;
 	}
 	
+	public void setDstMac(byte [] dstMac) {
+		
+		for(int i=0; i<dstMac.length; i++) {
+			this.m_sHeader.dstMac.addr[i]=dstMac[i];
+			
+		}
+	}
+	
+	public void setDstIp(byte [] dstIp) {
+		
+		for (int i=0; i<dstIp.length; i++) {
+			this.m_sHeader.dstIp.addr[i]=dstIp[i];
+			
+		}
+	}
+	
+	
 	public void setSrcMac(byte [] srcMac) {
 		for(int i=0; i<srcMac.length; i ++) {
 			this.m_sHeader.srcMac.addr[i]=srcMac[i];
