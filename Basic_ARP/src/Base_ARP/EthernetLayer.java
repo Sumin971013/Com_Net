@@ -77,7 +77,7 @@ public class EthernetLayer implements BaseLayer {
 			m_sHeader.enet_type[1] = (byte) 0x00;
 		}
 		
-		bytes = ObjToByte(m_sHeader, input.length);
+		bytes = ObjToByte(m_sHeader, input, input.length);
 		
 		if(this.GetUnderLayer().Send(bytes, bytes.length))
 			return true;
@@ -100,28 +100,14 @@ public class EthernetLayer implements BaseLayer {
 		return true;
 	}
 	
-	public byte[] ObjToByte(_ETHERNET_HEADER Header, int length) {
+	public byte[] ObjToByte(_ETHERNET_HEADER Header, byte[] input, int length) {
 		byte[] buf = new byte[length + 14];
+		
+		System.arraycopy(Header.enet_dstaddr, 0, buf, 0, 6);
+		System.arraycopy(Header.enet_srcaddr, 0, buf, 6, 6);
+		System.arraycopy(Header.enet_type, 0, buf, 12, 2);
 
-		buf[0] = Header.enet_dstaddr.addr[0];	// Dst Address
-		buf[1] = Header.enet_dstaddr.addr[1];
-		buf[2] = Header.enet_dstaddr.addr[2];
-		buf[3] = Header.enet_dstaddr.addr[3];
-		buf[4] = Header.enet_dstaddr.addr[4];
-		buf[5] = Header.enet_dstaddr.addr[5];
-
-		buf[6] = Header.enet_srcaddr.addr[0];	// Src Address
-		buf[7] = Header.enet_srcaddr.addr[1];
-		buf[8] = Header.enet_srcaddr.addr[2];
-		buf[9] = Header.enet_srcaddr.addr[3];
-		buf[10] = Header.enet_srcaddr.addr[4];
-		buf[11] = Header.enet_srcaddr.addr[5];
-
-		buf[12] = Header.enet_type[0];
-		buf[13] = Header.enet_type[1];
-
-		for (int i = 0; i < length; i++)
-			buf[14 + i] = Header.enet_data[i];
+		System.arraycopy(input, 0, buf, 14, length);
 
 		return buf;
 	}

@@ -133,38 +133,21 @@ public class ARPLayer implements BaseLayer{
 		}
 	}
 	
-	private byte[] ObjToByte(_ARP_HEADER Header) {
-		byte[] buf = new byte[28];
+	private byte[] ObjToByte(_ARP_HEADER Header, byte[] input, int length) {
+		byte[] buf = new byte[28 + length];
 		
-		buf[0] = Header.macType[0];
-		buf[1] = Header.macType[1];
-		buf[2] = Header.ipType[0];
-		buf[3] = Header.ipType[1];
+		System.arraycopy(Header.macType, 0, buf, 0, 2);
+		System.arraycopy(Header.ipType, 0, buf, 2, 2);
 		buf[4] = Header.macAddrLen;
 		buf[5] = Header.ipAddrLen;
-		buf[6] = Header.opcode[0];
-		buf[7] = Header.opcode[1];
-		buf[8] = Header.srcMac.addr[0];
-		buf[9] = Header.srcMac.addr[1];
-		buf[10] = Header.srcMac.addr[2];
-		buf[11] = Header.srcMac.addr[3];
-		buf[12] = Header.srcMac.addr[4];
-		buf[13] = Header.srcMac.addr[5];
-		buf[14] = Header.srcIp.addr[0];
-		buf[15] = Header.srcIp.addr[1];
-		buf[16] = Header.srcIp.addr[2];
-		buf[17] = Header.srcIp.addr[3];
-		buf[18] = Header.dstMac.addr[0];
-		buf[19] = Header.dstMac.addr[1];
-		buf[20] = Header.dstMac.addr[2];
-		buf[21] = Header.dstMac.addr[3];
-		buf[22] = Header.dstMac.addr[4];
-		buf[23] = Header.dstMac.addr[5];
-		buf[24] = Header.dstIp.addr[0];
-		buf[25] = Header.dstIp.addr[1];
-		buf[26] = Header.dstIp.addr[2];
-		buf[27] = Header.dstIp.addr[3];
+		System.arraycopy(Header.opcode, 0, buf, 6, 2);
+		System.arraycopy(Header.srcMac.addr, 0, buf, 8, 6);
+		System.arraycopy(Header.srcIp.addr, 0, buf, 14, 4);
+		System.arraycopy(Header.dstMac.addr, 0, buf, 18, 6);
+		System.arraycopy(Header.dstIp.addr, 0, buf, 24, 4);
 		
+		System.arraycopy(input, 0, buf, 28, length);
+				
 		return buf;
 	}
 	

@@ -8,6 +8,8 @@ public class IPLayer implements BaseLayer{
 	public BaseLayer p_UnderLayer = null;
 	public ArrayList<BaseLayer> p_aUpperLayer = new ArrayList<BaseLayer>();
 	
+	_IP_HEADER m_sHeader;
+	
 	private class _IP_ADDR {
 		private byte[] addr = new byte[4];
 		
@@ -46,10 +48,45 @@ public class IPLayer implements BaseLayer{
 			this.ip_data = null;				// optional
 		}
 	}
+	
+	private void ResetHeader() {
+		m_sHeader = new _IP_HEADER();
+	}
 
 	public IPLayer(String pName) {
 		// super(pName);
 		pLayerName = pName;
+		ResetHeader();
+	}
+	
+	private byte[] ObjToByte(_IP_HEADER Header, byte[] input, int length) {
+		byte[] buf = new byte[20 + length];
+		
+		buf[0] = Header.ip_verlen;
+		buf[1] = Header.ip_tos;
+		System.arraycopy(Header.ip_len, 0, buf, 2, 2);
+		System.arraycopy(Header.ip_id, 0, buf, 4, 2);
+		System.arraycopy(Header.ip_fragoff, 0, buf, 6, 2);
+		buf[8] = Header.ip_ttl;
+		buf[9] = Header.ip_proto;
+		System.arraycopy(Header.ip_cksum, 0, buf, 10, 2);
+		System.arraycopy(Header.ip_src.addr, 0, buf, 12, 4);
+		System.arraycopy(Header.ip_dst.addr, 0, buf, 16, 4);
+		
+		System.arraycopy(input, 0, buf, 20, length);
+		
+		return buf;
+	}
+	
+	public boolean Send(byte[] input, int length) {
+		
+		
+		return true;
+	}
+	
+	public boolean Receive(byte[] input, int length) {
+		
+		return true;
 	}
 
 	@Override
