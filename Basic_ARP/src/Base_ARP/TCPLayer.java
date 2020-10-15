@@ -10,6 +10,8 @@ public class TCPLayer implements BaseLayer{
 	public BaseLayer p_UnderLayer = null;
 	public ArrayList<BaseLayer> p_aUpperLayer = new ArrayList<BaseLayer>();
 	
+	_TCP_HEADER m_sHeader;
+	
 	private class _TCP_ADDR {
 		private byte[] addr = new byte[2];
 		
@@ -43,13 +45,49 @@ public class TCPLayer implements BaseLayer{
 			this.tcp_cksum = new byte[2];			// 2 Bytes	/ 16~17
 			this.tcp_urgptr = new byte[2];			// 2 Bytes	/ 18~19
 			this.padding = new byte[4];				// 4 Bytes	/ 20~23
-			this.tcp_data = null;
 		}
+	}
+	
+	private void ResetHeader() {
+		m_sHeader = new _TCP_HEADER();
 	}
 
 	public TCPLayer(String pName) {
 		// super(pName);
 		pLayerName = pName;
+		ResetHeader();
+	}
+	
+	private byte[] ObjToByte(_TCP_HEADER Header, byte[] input, int length) {
+		byte[] buf = new byte[24 + length];
+		
+		System.arraycopy(Header.tcp_srcport.addr, 0, buf, 0, 2);
+		System.arraycopy(Header.tcp_dstport.addr, 0, buf, 2, 2);
+		System.arraycopy(Header.tcp_seq, 0, buf, 4, 4);
+		System.arraycopy(Header.tcp_ack, 0, buf, 8, 4);
+		buf[12] = Header.tcp_offset;
+		buf[13] = Header.tcp_flag;
+		System.arraycopy(Header.tcp_window, 0, buf, 14, 2);
+		System.arraycopy(Header.tcp_cksum, 0, buf, 16, 2);
+		System.arraycopy(Header.tcp_urgptr, 0, buf, 18, 2);
+		System.arraycopy(Header.padding, 0, buf, 20, 4);
+		
+		System.arraycopy(input, 0, buf, 24, length);
+			
+		return buf;
+	}
+	
+	public boolean Send(byte[] input, int length) {
+		byte[] _TCP_FRAME = ObjToByte(m_sHeader, input, length);
+		
+		return this.GetUnderLayer().Send(_TCP_FRAME, _TCP_FRAME.length);
+	}
+	
+	public boolean Receive(byte[] input, int length) {
+		
+		// 기본 구현에서는 TCP와 IP Layer의 Receive가 동작하지 않음
+		
+		return false;
 	}
 
 	@Override

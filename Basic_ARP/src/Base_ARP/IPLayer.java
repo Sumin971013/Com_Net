@@ -8,6 +8,8 @@ public class IPLayer implements BaseLayer{
 	public BaseLayer p_UnderLayer = null;
 	public ArrayList<BaseLayer> p_aUpperLayer = new ArrayList<BaseLayer>();
 	
+	_IP_HEADER m_sHeader;
+	
 	private class _IP_ADDR {
 		private byte[] addr = new byte[4];
 		
@@ -16,6 +18,19 @@ public class IPLayer implements BaseLayer{
 			this.addr[1] = (byte) 0x00;
 			this.addr[2] = (byte) 0x00;
 			this.addr[3] = (byte) 0x00;
+		}
+		
+		@Override
+		public String toString() {
+			String ipAddress = "";
+			
+			// addr에 가지고있는 byte를 가져와 Integer로 변환 후 .을 더함
+			for (byte b : this.addr) {
+				ipAddress += Integer.toString(b & 0xFF) + ".";
+			}
+			
+			// 마지막에 붙은 "."은 제거하여 return
+			return ipAddress.substring(0, ipAddress.length() - 1);
 		}
 	}
 	
@@ -43,13 +58,49 @@ public class IPLayer implements BaseLayer{
 			this.ip_cksum = new byte[2];		// 2 Bytes	/ 10~11
 			this.ip_src = new _IP_ADDR();		// 4 Bytes	/ 12~15
 			this.ip_dst = new _IP_ADDR();		// 4 Bytes	/ 16~19
-			this.ip_data = null;				// optional
 		}
+	}
+	
+	private void ResetHeader() {
+		m_sHeader = new _IP_HEADER();
 	}
 
 	public IPLayer(String pName) {
 		// super(pName);
 		pLayerName = pName;
+		ResetHeader();
+	}
+	
+	private byte[] ObjToByte(_IP_HEADER Header, byte[] input, int length) {
+		byte[] buf = new byte[20 + length];
+		
+		buf[0] = Header.ip_verlen;
+		buf[1] = Header.ip_tos;
+		System.arraycopy(Header.ip_len, 0, buf, 2, 2);
+		System.arraycopy(Header.ip_id, 0, buf, 4, 2);
+		System.arraycopy(Header.ip_fragoff, 0, buf, 6, 2);
+		buf[8] = Header.ip_ttl;
+		buf[9] = Header.ip_proto;
+		System.arraycopy(Header.ip_cksum, 0, buf, 10, 2);
+		System.arraycopy(Header.ip_src.addr, 0, buf, 12, 4);
+		System.arraycopy(Header.ip_dst.addr, 0, buf, 16, 4);
+		
+		System.arraycopy(input, 0, buf, 20, length);
+		
+		return buf;
+	}
+	
+	public boolean Send(byte[] input, int length) {
+		byte[] _IP_FRAME = ObjToByte(m_sHeader, input, input.length);
+		
+		return this.GetUnderLayer().Send(_IP_FRAME, _IP_FRAME.length);
+	}
+	
+	public boolean Receive(byte[] input, int length) {
+		
+		// 기본 구현에서는 TCP와 IP Layer의 Receive가 동작하지 않음
+		
+		return true;
 	}
 
 	@Override
