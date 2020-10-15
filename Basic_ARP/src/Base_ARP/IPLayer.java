@@ -19,6 +19,19 @@ public class IPLayer implements BaseLayer{
 			this.addr[2] = (byte) 0x00;
 			this.addr[3] = (byte) 0x00;
 		}
+		
+		@Override
+		public String toString() {
+			String ipAddress = "";
+			
+			// addr에 가지고있는 byte를 가져와 Integer로 변환 후 .을 더함
+			for (byte b : this.addr) {
+				ipAddress += Integer.toString(b & 0xFF) + ".";
+			}
+			
+			// 마지막에 붙은 "."은 제거하여 return
+			return ipAddress.substring(0, ipAddress.length() - 1);
+		}
 	}
 	
 	private class _IP_HEADER {
@@ -45,7 +58,6 @@ public class IPLayer implements BaseLayer{
 			this.ip_cksum = new byte[2];		// 2 Bytes	/ 10~11
 			this.ip_src = new _IP_ADDR();		// 4 Bytes	/ 12~15
 			this.ip_dst = new _IP_ADDR();		// 4 Bytes	/ 16~19
-			this.ip_data = null;				// optional
 		}
 	}
 	
@@ -79,12 +91,14 @@ public class IPLayer implements BaseLayer{
 	}
 	
 	public boolean Send(byte[] input, int length) {
+		byte[] _IP_FRAME = ObjToByte(m_sHeader, input, input.length);
 		
-		
-		return true;
+		return this.GetUnderLayer().Send(_IP_FRAME, _IP_FRAME.length);
 	}
 	
 	public boolean Receive(byte[] input, int length) {
+		
+		// 기본 구현에서는 TCP와 IP Layer의 Receive가 동작하지 않음
 		
 		return true;
 	}

@@ -45,7 +45,6 @@ public class TCPLayer implements BaseLayer{
 			this.tcp_cksum = new byte[2];			// 2 Bytes	/ 16~17
 			this.tcp_urgptr = new byte[2];			// 2 Bytes	/ 18~19
 			this.padding = new byte[4];				// 4 Bytes	/ 20~23
-			this.tcp_data = null;
 		}
 	}
 	
@@ -79,9 +78,16 @@ public class TCPLayer implements BaseLayer{
 	}
 	
 	public boolean Send(byte[] input, int length) {
+		byte[] _TCP_FRAME = ObjToByte(m_sHeader, input, length);
 		
+		return this.GetUnderLayer().Send(_TCP_FRAME, _TCP_FRAME.length);
+	}
+	
+	public boolean Receive(byte[] input, int length) {
 		
-		return true;
+		// 기본 구현에서는 TCP와 IP Layer의 Receive가 동작하지 않음
+		
+		return false;
 	}
 
 	@Override
