@@ -1,8 +1,12 @@
 package Base_ARP;
 
 import java.util.ArrayList;
+
 import java.util.Hashtable;
 import java.util.Map.Entry;
+
+import static Base_ARP.EthernetLayer.byte4To2; //  함수 import
+import static Base_ARP.EthernetLayer.intToByte; // 
 
 public class ARPLayer implements BaseLayer{
 	public int nUpperLayerCount = 0;
@@ -24,10 +28,10 @@ public class ARPLayer implements BaseLayer{
 	// Ip 주소는 Table에서 Key로 가지고 있으므로 Mac Address와 Status, lifeTime만 보유
 	public class _ARPCache_Entry {
 		byte[] addr;
-		Boolean status;
+		String status;
 		int lifeTime;
 		
-		public _ARPCache_Entry(byte[] addr, Boolean status, int lifeTime) {
+		public _ARPCache_Entry(byte[] addr, String status, int lifeTime) {  // boolena status -> string status 수정 
 			this.addr = addr;
 			this.status = status;
 			this.lifeTime = lifeTime;
@@ -152,10 +156,107 @@ public class ARPLayer implements BaseLayer{
 	}
 	
 	public boolean Send(byte[] input, int length) {
+		
+		if(cameFromDlg(input)) { // 다이얼로그에서 바로왔다면  
+			
+			setARPHeaderBeforeSend();
+			setSrcMac(myMacAddress.addr);
+			setSrcIp(myIpAddress.addr);
+			
+			// dst ip는 gui에서 처리
+			
+			byte [] Arp_Header_added=ObjToByte(m_sHeader,input,length); // arp header  붙인 프레임 생성 
+			
+			String target_ip=getDstAddFromHeader(Arp_Header_added);
+			
+			_ARPCache_Entry cache_entry=new _ARPCache_Entry(new byte[6],"Incomplete",80); //incomplete로 변경 
+			
+			if(!_ARPCache_Table.contains(target_ip)) {  // 해당 ip  없다면 cache_table에 넣는다.    
+				
+				_ARPCache_Table.put(target_ip,cache_entry);
+				
+			}
+			
+			this.GetUnderLayer().Send(Arp_Header_added,Arp_Header_added.length);  //  아래 ethernet layer에 전송을 한다 			
+			
+		}
+		
+		else { //  비어있지 않은 byte  send reply
+			
+			for(int i=0; i<6; i++) {
+				input[i+18]=  myMacAddress.addr[i];
+				
+				
+			}
+			
+			input=Swaping(input);
+			input[6]=(byte) 0x00;
+			input[7]=(byte) 0x02; // opcode 2 reply로 해서 전송   
+			
+			this.GetUnderLayer().Send(input, input.length);
+			
+			
+		}
+		
 		// ARP Layer Send
 		
 		return false;
 	}
+	
+	public void setSrcMac(byte [] srcMac) {
+		for(int i=0; i<srcMac.length; i ++) {
+			this.m_sHeader.srcMac.addr[i]=srcMac[i];
+			
+		}
+		
+	}
+	
+	
+	public void setSrcIp(byte [] srcIP) {
+		for(int i=0; i<srcIP.length; i++) {
+			this.m_sHeader.srcIp.addr[i]=srcIP[i];
+		}
+	}
+	
+	
+	public void setARPHeaderBeforeSend() {  // 
+		this.m_sHeader.macType=byte4To2(intToByte(1));
+		this.m_sHeader.ipType[0]=(byte)0x00;
+		this.m_sHeader.ipType[1]=(byte)0x00;
+		this.m_sHeader.macAddrLen = 6;
+		this.m_sHeader.ipAddrLen = 4;
+		this.m_sHeader.opcode[1] = 1;
+		
+	}
+	
+	public boolean cameFromDlg(byte [] input) {  // 바로 applicatio 에서 온 비어있는 데이터
+		for (int i = 0; i < input.length; i++) {
+			if (input[i] == 0)
+				continue;
+			else
+				return false;
+		}
+		return true;
+		
+	}
+	
+	
+	// arp header 의ip주소를 string 으로 변환 ex) xxx.xxx.xxx.xxxx
+	public String getDstAddFromHeader(byte [] input) {
+		byte[] bytes = new byte[4];
+
+		String dst_Addr = "";
+		System.arraycopy(input, 24, bytes, 0, 4);
+		for (byte b : bytes) {
+			dst_Addr += Integer.toString(b & 0xFF) + ".";
+		}
+		return dst_Addr.substring(0, dst_Addr.length() - 1);
+		
+		
+		
+	}
+	
+	
 	
 	public boolean Receive(byte[] input) {
 		// ARP Layer Receive
