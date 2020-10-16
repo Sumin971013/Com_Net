@@ -72,7 +72,8 @@ public class TCPLayer implements BaseLayer{
 		System.arraycopy(Header.tcp_urgptr, 0, buf, 18, 2);
 		System.arraycopy(Header.padding, 0, buf, 20, 4);
 		
-		System.arraycopy(input, 0, buf, 24, length);
+		if(length!=0)
+			System.arraycopy(input, 0, buf, 24, length);
 			
 		return buf;
 	}
