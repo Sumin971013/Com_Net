@@ -8,12 +8,21 @@ import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.regex.Pattern;
 
 import javax.swing.*;
 import javax.swing.border.*;
+
+import Base_ARP.ARPLayer._ARPCache_Entry;
+import Base_ARP.ARPLayer._Proxy_Entry;;
 
 public class ApplicationLayer extends JFrame implements BaseLayer {
 	public int nUpperLayerCount = 0;
@@ -22,6 +31,9 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 	public ArrayList<BaseLayer> p_aUpperLayer = new ArrayList<BaseLayer>();
 
 	private static LayerManager m_LayerMgr = new LayerManager();	
+	
+	public static Hashtable<String, _ARPCache_Entry> _ARPCache_Table;
+	public static Hashtable<String, _Proxy_Entry> _Proxy_Table;
 	
 	Container contentPane;	// 메인 ARP 인터페이스
 	Container proxyAddPane; // Proxy Add 인터페이스
@@ -39,8 +51,8 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 	JComboBox<String> ComboBox_Device;
 	JFrame Frame_ProxyAddPopup;
 	
-	DefaultListModel<String> ListModel_ARPCache;
-	DefaultListModel<String> ListModel_Proxy;
+	static DefaultListModel<String> ListModel_ARPCache;
+	static DefaultListModel<String> ListModel_Proxy;
 	
 	JList<String> List_ARPCache;
 	JList<String> List_Proxy;
@@ -63,7 +75,7 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 	JButton Btn_ProxyAdd_Cancel;
 	
 	
-	public static void main(String[] args) {
+	public static void main(String[] args) throws UnknownHostException {		
 		m_LayerMgr.AddLayer(new ApplicationLayer("GUI"));
 		m_LayerMgr.AddLayer(new TCPLayer("TCP"));
 		m_LayerMgr.AddLayer(new IPLayer("IP"));
@@ -72,7 +84,51 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 		m_LayerMgr.AddLayer(new NILayer("NI"));
 		
 		m_LayerMgr.ConnectLayers(" NI ( *ETHERNET ( *ARP +IP ( -ARP *TCP ( *GUI ) ) ) )");
+		
+		// ARPLayer의 ARP&Proxy Table을 가져와 동기화시킨다
+		_ARPCache_Table = ((ARPLayer) m_LayerMgr.GetLayer("ARP"))._ARPCache_Table;
+		_Proxy_Table = ((ARPLayer) m_LayerMgr.GetLayer("ARP"))._Proxy_Table;
+		
+		// Thread에 updater를 넣어 시작
+		Thread updaterThread = new Thread(updater, "updaterThread");
+		updaterThread.start();
 	}
+	
+	// CacheTable update를 돌리기 위한 Runnable
+	static Runnable updater = () -> {
+		while(true) {
+			try {
+				// 연산 부담을 줄이기 위해
+				// 2초 sleep을 걸어주어 2초마다 updateGUI 함수 실행
+				Thread.sleep(2000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			updateGUI();
+		}
+	};
+	
+	public static void updateGUI() {
+		Enumeration<String> arpKeys = _ARPCache_Table.keys();
+		while(arpKeys.hasMoreElements()) {
+			// arpKeys를 순회하면서
+			// byte 형식으로 저장된 mac Address를 String으로 변환한 후
+			// ip + mac + status 형식으로
+			// ListModel_ARPCache에 이를 update 해야함
+		}
+	}
+	
+	// ARP Send를 누를 때 새로운 ARP Cache를 Table에 넣어주는 함수
+	public void cacheAddToTable() {
+		// Send 버튼을 누른 뒤
+		// ARP CacheTable 탐색후 해당 key가 존재하지 않을 때
+		// TP_IPAddress의 Text값을 가져와
+		// "????" + status : uncomplete + lifeTime 으로
+		// 새로운 Entry를 만들어
+		// cacheTable에 이를 저장하는 기능
+	}
+	
+	
 
 	public ApplicationLayer(String pName) {
 		pLayerName = pName;
@@ -312,8 +368,6 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 		
 	}
 	
-	
-
 	private void SetCombobox() {
 		
 	}
@@ -322,6 +376,10 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 	public boolean Receive(byte[] input) {
 		
 		return false;
+	}
+	
+	public String getIpAddressInput() {
+		return TF_IPAddress.getText();
 	}
 	
 	private boolean ipValidationCheck(String input) {
@@ -378,4 +436,29 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 		pUULayer.SetUnderLayer(this);
 
 	}
+	
+	 public static String getLocalMacAddress() {
+		 	String result = "";
+			InetAddress ip;
+
+			try {
+				ip = InetAddress.getLocalHost();
+			   
+				NetworkInterface network = NetworkInterface.getByInetAddress(ip);
+				byte[] mac = network.getHardwareAddress();
+			   
+				StringBuilder sb = new StringBuilder();
+				for (int i = 0; i < mac.length; i++) {
+					sb.append(String.format("%02X%s", mac[i], (i < mac.length - 1) ? "-" : ""));
+				}
+					result = sb.toString();
+			} catch (UnknownHostException e) {
+				e.printStackTrace();
+			} catch (SocketException e){
+				e.printStackTrace();
+			}
+			    
+			return result;
+	 }
+
 }
