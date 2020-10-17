@@ -1,7 +1,6 @@
 package Base_ARP;
 
 import java.awt.Color;
-import java.util.StringTokenizer;
 import java.awt.Container;
 import java.awt.FileDialog;
 import java.awt.event.ActionEvent;
@@ -9,28 +8,28 @@ import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.regex.Pattern;
 
 import javax.swing.*;
 import javax.swing.border.*;
 
+import Base_ARP.ARPLayer._ARPCache_Entry;
+import Base_ARP.ARPLayer._Proxy_Entry;;
+
 public class ApplicationLayer extends JFrame implements BaseLayer {
 	public int nUpperLayerCount = 0;
 	public String pLayerName = null;
 	public BaseLayer p_UnderLayer = null;
 	public ArrayList<BaseLayer> p_aUpperLayer = new ArrayList<BaseLayer>();
-
 	private static LayerManager m_LayerMgr = new LayerManager();	
-	
-	Container contentPane;	// 메인 ARP 인터페이스
-	Container proxyAddPane; // Proxy Add 인터페이스
-	
-	JTextField TF_IPAddress;
-	JTextField TF_HWAddress;
-	JTextField TF_ProxyIPAddress;
-	JTextField TF_ProxyMacAddress;
 	
 	
 	JPanel Panel_IPAddress;
@@ -39,32 +38,36 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 	JPanel Panel_ProxyAdd_HWAddress;
 	JComboBox<String> ComboBox_Device;
 	JFrame Frame_ProxyAddPopup;
-	
-	DefaultListModel<String> ListModel_ARPCache;
-	DefaultListModel<String> ListModel_Proxy;
-	
 	JList<String> List_ARPCache;
 	JList<String> List_Proxy;
-	
 	JLabel Label_IP;
 	JLabel Label_HW;
 	JLabel Label_ProxyAdd_Device;
 	JLabel Label_ProxyAdd_IP;
 	JLabel Label_ProxyAdd_Ethernet;
+	Container contentPane;			// 메인 ARP 인터페이스
+	Container proxyAddPane; 		// Proxy Add 인터페이스
+	JTextField TF_IPAddress;		// IP 주소 입력부분
+	JTextField TF_HWAddress;		// Grat - HW 주소 입력부분
+	JTextField TF_ProxyIPAddress;	// Proxy Add 팝업창에서 IP 입력부
+	JTextField TF_ProxyMacAddress;	// Proxy Add 팝업창에서 Ethernet 주소 입력부
+	JButton Btn_ItemDelete;			// ARP Cache Item Delete 버튼
+	JButton Btn_AllDelete;			// ARP Cache All Delete 버튼
+	JButton Btn_ARPSend;			// ARP Send 버튼
+	JButton Btn_ProxyAdd;			// Proxy Add 버튼
+	JButton Btn_ProxyDelete;		// Proxy Delete 버튼
+	JButton Btn_GratSend;			// Grat Send 버튼
+	JButton Btn_Exit;				// Main Frame Exit 버튼
+	JButton Btn_Cancel;				// Main Frame Cancel 버튼
+	JButton Btn_ProxyAdd_Ok;		// Proxy Add 팝업 Ok 버튼
+	JButton Btn_ProxyAdd_Cancel;	// Proxy Add 팝업 Cancel 버튼
+	static DefaultListModel<String> ListModel_ARPCache;	// ARPCache List 관리하는 Model
+	static DefaultListModel<String> ListModel_Proxy;	// Proxy List 관리하는 Model
 	
-	JButton Btn_ItemDelete;
-	JButton Btn_AllDelete;
-	JButton Btn_ARPSend;
-	JButton Btn_ProxyAdd;
-	JButton Btn_ProxyDelete;
-	JButton Btn_GratSend;
-	JButton Btn_Exit;
-	JButton Btn_Cancel;
-	JButton Btn_ProxyAdd_Ok;
-	JButton Btn_ProxyAdd_Cancel;
+	static Hashtable<String, _ARPCache_Entry> _ARPCache_Table;
+	static Hashtable<String, _Proxy_Entry> _Proxy_Table;
 	
-	
-	public static void main(String[] args) {
+	public static void main(String[] args) throws UnknownHostException {		
 		m_LayerMgr.AddLayer(new ApplicationLayer("GUI"));
 		m_LayerMgr.AddLayer(new TCPLayer("TCP"));
 		m_LayerMgr.AddLayer(new IPLayer("IP"));
@@ -73,8 +76,110 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 		m_LayerMgr.AddLayer(new NILayer("NI"));
 		
 		m_LayerMgr.ConnectLayers(" NI ( *ETHERNET ( *ARP +IP ( -ARP *TCP ( *GUI ) ) ) )");
+		
+		// ARPLayer의 ARP&Proxy Table을 가져와 동기화시킨다
+		_ARPCache_Table = ((ARPLayer) m_LayerMgr.GetLayer("ARP"))._ARPCache_Table;
+		_Proxy_Table = ((ARPLayer) m_LayerMgr.GetLayer("ARP"))._Proxy_Table;		
+		
+		// Thread에 updater를 넣어 시작
+		Thread updaterThread = new Thread(updater, "updaterThread");
+		updaterThread.start();
 	}
+	
+	// CacheTable GUI를 지속적으로 Update하는 Runnable updater
+	static Runnable updater = () -> {
+		while(true) {
+			try {
+				// 연산 부담을 줄이기 위해
+				// 2초 sleep을 걸어주어 2초마다 updateGUI 함수 실행
+				Thread.sleep(1000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			updateGUI();
+		}
+	};
+	
+	// ARPCache Table의 Element를 가져와 GUI를 Update하는 함수
+	public static void updateGUI() {
+		Enumeration<String> arpKeys = _ARPCache_Table.keys();
+		ListModel_ARPCache.removeAllElements();
+		while(arpKeys.hasMoreElements()) {
+			String ipKey = (String) arpKeys.nextElement();
+			_ARPCache_Entry tempEntry = _ARPCache_Table.get(ipKey);
+			String macAddress = ((ARPLayer) m_LayerMgr.GetLayer("ARP")).macToString(tempEntry.addr);
+			if(macAddress.equals("00:00:00:00:00:00")) {
+				macAddress = "??????????";
+			}
+			String model = String.format("%20s%25s%15s", ipKey, macAddress, tempEntry.status);
+			ListModel_ARPCache.addElement(model);
+		}
+	}
+	
+	// Button EventListener 부분
+	class btnClickEvent implements ActionListener {
 
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			if (e.getSource() == Btn_ItemDelete) {
+				
+			}
+			if (e.getSource() == Btn_AllDelete) {
+				
+			}
+			if (e.getSource() == Btn_ARPSend) {
+				String ip_input = TF_IPAddress.getText();
+				if(ipValidationCheck(ip_input)) {
+					((ARPLayer) m_LayerMgr.GetLayer("ARP")).targetIpInput = ip_input;
+					((TCPLayer) m_LayerMgr.GetLayer("TCP")).Send(null, 0);
+				} else {
+					System.out.println("유효하지 않은 IP 입력입니다 : " + ip_input);
+				}
+			}
+			if (e.getSource() == Btn_ProxyAdd) {
+				
+			}
+			if (e.getSource() == Btn_ProxyDelete) {
+				
+			}
+			if (e.getSource() == Btn_GratSend) {
+				((ARPLayer) m_LayerMgr.GetLayer("ARP")).gratMacInput = TF_HWAddress.getText();
+			}
+			if (e.getSource() == Btn_Exit) {
+				System.exit(0);
+			}
+			if (e.getSource() == Btn_Cancel) {
+				System.exit(0);
+				dispose();
+			}
+			if (e.getSource() == Btn_ProxyAdd_Ok) {
+				
+			}
+			if (e.getSource() == Btn_ProxyAdd_Cancel) {
+				
+			}
+		}
+		
+	}
+	
+	public boolean Receive(byte[] input) {
+		
+		return false;
+	}
+		
+	// IP 입력 형식 체크해주는 예외처리 - 나중에 필요없어지면 지워도됨
+	private boolean ipValidationCheck(String input) {
+		String validIp = "^([1-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])"
+				+ "(\\.([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])){3}$";
+		  
+		  if (!Pattern.matches(validIp, input )) {
+			  return false;
+		  }
+		  return true;
+	}
+	
+	// ----------------------------GUI Part-----------------------------
+	
 	public ApplicationLayer(String pName) {
 		pLayerName = pName;
 
@@ -268,106 +373,8 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 		proxyAddPane.add(Btn_ProxyAdd_Cancel);
 
 	}
-	
-	class btnClickEvent implements ActionListener {
-
-		@Override
-		public void actionPerformed(ActionEvent e) {
-			if (e.getSource() == Btn_ItemDelete) {
-				
-			}
-			if (e.getSource() == Btn_AllDelete) {
-				
-			}
-			if (e.getSource() == Btn_ARPSend) {
-				String ip_input = TF_IPAddress.getText();
-				if(ipValidationCheck(ip_input)) {
-					
-					
-					
-					// 주소 박스에 입력한 아이피 주소를 arp 헤더의 dst 주소로 설정을 하고 
-					((ARPLayer) m_LayerMgr.GetLayer("ARP")).setDstIp(strToByteArrayIp(TF_IPAddress.getText()));
-					((TCPLayer) m_LayerMgr.GetLayer("TCP")).Send("".getBytes(), 0);
-					
-					
-					
-					
-				} else {
-					System.out.println("유효하지 않은 IP 입력입니다 : " + ip_input);
-				}
-			}
-			if (e.getSource() == Btn_ProxyAdd) {
-				
-			}
-			if (e.getSource() == Btn_ProxyDelete) {
-				
-			}
-			if (e.getSource() == Btn_GratSend) {
-				
-			}
-			if (e.getSource() == Btn_Exit) {
-				System.exit(0);
-			}
-			if (e.getSource() == Btn_Cancel) {
-				System.exit(0);
-				dispose();
-			}
-			if (e.getSource() == Btn_ProxyAdd_Ok) {
-				
-			}
-			if (e.getSource() == Btn_ProxyAdd_Cancel) {
-				
-			}
-		}
-		
-	}
-	
-	
-	// IP 주소 텍스트창에 입력한거 byte 배열로 바꿔줌 
-		public byte[] strToByteArrayIp(String str) {
-			byte[] bytes = new byte[4];
-			StringTokenizer st = new StringTokenizer(str, ".");
-
-			for (int i = 0; i < 4; i++)
-				bytes[i] = (byte) Integer.parseInt(st.nextToken());
-
-			return bytes;
-		}
-
-		// MAC 주소 str 입력 받은거 byte 배열로 바꿔 줌   
-		public byte[] strToByteArrayMac(String str) {
-			byte[] byteMACAddr = new byte[6];
-			String[] byte_dst = str.split(":");
-			
-			for (int i = 0; i < 6; i++) {
-				byteMACAddr[i] = (byte) Integer.parseInt(byte_dst[i], 16);
-			}
-
-			return byteMACAddr;
-		}
 
 	
-	
-
-	private void SetCombobox() {
-		
-	}
-	
-	
-	public boolean Receive(byte[] input) {
-		
-		return false;
-	}
-	
-	private boolean ipValidationCheck(String input) {
-		String validIp = "^([1-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])"
-				+ "(\\.([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])){3}$";
-		  
-		  if (!Pattern.matches(validIp, input )) {
-			  return false;
-		  }
-		  return true;
-	}
 	@Override
 	public void SetUnderLayer(BaseLayer pUnderLayer) {
 		// TODO Auto-generated method stub
@@ -413,4 +420,5 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 		pUULayer.SetUnderLayer(this);
 
 	}
+	
 }

@@ -1,12 +1,13 @@
 package Base_ARP;
 
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 
 import java.util.Hashtable;
 import java.util.Map.Entry;
-
-import static Base_ARP.EthernetLayer.byte4To2; //  함수 import
-import static Base_ARP.EthernetLayer.intToByte; // 
 
 public class ARPLayer implements BaseLayer{
 	public int nUpperLayerCount = 0;
@@ -17,16 +18,18 @@ public class ARPLayer implements BaseLayer{
 	_ARP_HEADER m_sHeader;
 	
 	// ARP Cache Table & Proxy Table
-	private Hashtable<String, _ARPCache_Entry> _ARPCache_Table = new Hashtable<>();
-	private Hashtable<String, _Proxy_Entry> _Proxy_Table = new Hashtable<>();
+	public Hashtable<String, _ARPCache_Entry> _ARPCache_Table = new Hashtable<>();
+	public Hashtable<String, _Proxy_Entry> _Proxy_Table = new Hashtable<>();
 	
 	// Device's Info
 	public _IP_ADDR myIpAddress = new _IP_ADDR();
 	public _ETHERNET_ADDR myMacAddress = new _ETHERNET_ADDR();
+	public String targetIpInput = new String();
+	public String gratMacInput = new String();
 	
 	// ARP Cache Entry
 	// Ip 주소는 Table에서 Key로 가지고 있으므로 Mac Address와 Status, lifeTime만 보유
-	public class _ARPCache_Entry {
+	public static class _ARPCache_Entry {
 		byte[] addr;
 		String status;
 		int lifeTime;
@@ -40,7 +43,7 @@ public class ARPLayer implements BaseLayer{
 	
 	// Proxy Entry
 	// Ip주소는 Table에서 Key로 가지고 있으므로 Mac Address와 hostName만 보유
-	public class _Proxy_Entry {
+	public static class _Proxy_Entry {
 		String hostName;
 		byte[] addr;
 		
@@ -69,20 +72,8 @@ public class ARPLayer implements BaseLayer{
 			this.addr[2] = (byte) 0x00;
 			this.addr[3] = (byte) 0x00;
 		}
-		
-		@Override
-		public String toString() {
-			String ipAddress = "";
-			
-			// addr에 가지고있는 byte를 가져와 Integer로 변환 후 .을 더함
-			for (byte b : this.addr) {
-				ipAddress += Integer.toString(b & 0xFF) + ".";
-			}
-			
-			// 마지막에 붙은 "."은 제거하여 return
-			return ipAddress.substring(0, ipAddress.length() - 1);
-		}
 	}
+	
 	
 	private class _ETHERNET_ADDR {
 		private byte[] addr = new byte[6];
@@ -95,23 +86,8 @@ public class ARPLayer implements BaseLayer{
 			this.addr[4] = (byte) 0x00;
 			this.addr[5] = (byte) 0x00;
 		}
-		
-		@Override
-		public String toString() {
-			String macAddress = "";
-			
-			// addr에 가지고 있는 byte 배열의 byte를 가져와 두 자리의
-			// mac Address String으로 변환하여 String에 더함
-			for (byte b : this.addr) {
-				macAddress += String.format("%02X:", b);
-			}
-			
-			// 마지막에 붙은 ":"는 제거하여 return
-			return macAddress.substring(0, macAddress.length() - 1);
-				
-		}
 	}
-	
+		
 	private class _ARP_HEADER {
 		byte[] macType;								// Hardware Type
 		byte[] ipType;								// Protocol Type
@@ -157,123 +133,107 @@ public class ARPLayer implements BaseLayer{
 	
 	public boolean Send(byte[] input, int length) {
 		
-		if(cameFromDlg(input)) { // 다이얼로그에서 바로왔다면  
+		// 먼저 자신이 가지고있는 ARP Cache인지 확인
+		if(containsARP(targetIpInput)) {
+			_ARPCache_Entry tempEntry = _ARPCache_Table.get(targetIpInput);
 			
-			setARPHeaderBeforeSend();
-			setSrcMac(myMacAddress.addr);
-			setSrcIp(myIpAddress.addr);
-			
-			// dst ip는 gui에서 처리
-			
-			byte [] Arp_Header_added=ObjToByte(m_sHeader,input,length); // arp header  붙인 프레임 생성 
-			
-			String target_ip=getDstAddFromHeader(Arp_Header_added);
-			
-			_ARPCache_Entry cache_entry=new _ARPCache_Entry(new byte[6],"Incomplete",80); //incomplete로 변경 
-			
-			if(!_ARPCache_Table.contains(target_ip)) {  // 해당 ip  없다면 cache_table에 넣는다.    
-				
-				_ARPCache_Table.put(target_ip,cache_entry);
-				
+			if(tempEntry.status.equals("Incomplete")) {	
+				// Incomplete 상태라 Request 보내야하는경우
 			}
-			
-			this.GetUnderLayer().Send(Arp_Header_added,Arp_Header_added.length);  //  아래 ethernet layer에 전송을 한다 			
-			
-		}
-		
-		else { //  비어있지 않은 byte  send reply
-			
-			for(int i=0; i<6; i++) {
-				input[i+18]=  myMacAddress.addr[i];
-				
-				
+			else {	
+				// ARP Request 보낼 필요 없는경우
 			}
-			
-			input=Swaping(input);
-			input[6]=(byte) 0x00;
-			input[7]=(byte) 0x02; // opcode 2 reply로 해서 전송   
-			
-			this.GetUnderLayer().Send(input, input.length);
-			
-			
 		}
-		
-		// ARP Layer Send
+		else {
+			_ARPCache_Table.put(targetIpInput, new _ARPCache_Entry(new byte[6], "Incomplete", 100));
+			setSrcHeader();
+			System.out.println(targetIpInput);
+			setDstIp(ipToByte(targetIpInput));
+			setDstMac(new byte[6]);
+			setDefaultHeader((byte) 0x01);
+			byte[] _ARP_FRAME = ObjToByte(m_sHeader, input, length);
+			this.GetUnderLayer().Send(_ARP_FRAME, _ARP_FRAME.length);
+		}
 		
 		return false;
 	}
 	
-	public void setDstMac(byte [] dstMac) {
-		
-		for(int i=0; i<dstMac.length; i++) {
-			this.m_sHeader.dstMac.addr[i]=dstMac[i];
-			
-		}
+	public void setDefaultHeader(byte opcode) {
+		this.m_sHeader.macType[1] = (byte) 0x01;
+		this.m_sHeader.ipType[0] = (byte) 0x80;
+		this.m_sHeader.ipType[1] = (byte) 0x00;
+		this.m_sHeader.ipAddrLen = (byte) 0x04;
+		this.m_sHeader.macAddrLen = (byte) 0x06;
+		this.m_sHeader.opcode[1] = opcode;
 	}
 	
-	public void setDstIp(byte [] dstIp) {
-		
-		for (int i=0; i<dstIp.length; i++) {
-			this.m_sHeader.dstIp.addr[i]=dstIp[i];
-			
+	public void setSrcHeader() {
+		try {
+			setSrcIp();
+			setSrcMac();
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		} catch (SocketException e) {
+			e.printStackTrace();
 		}
+		
 	}
 	
+	// ARPCache Table이 ip에 해당되는 Element를 가지고있는지 검사
+	public boolean containsARP(String ip) {
+		if(_ARPCache_Table.containsKey(ip)) 
+			return true;
+		else
+			return false;
+	}
 	
-	public void setSrcMac(byte [] srcMac) {
+	// Proxy Table이 ip input에 해당되는 Element를 가지고있는지 검사
+	public boolean containsProxy(String ip) {
+		if(_Proxy_Table.containsKey(ip))
+			return true;
+		else
+			return false;
+	}
+	
+	// m_sHeader의 mac Address를 본인의 Mac으로 채우는 함수
+	public void setSrcMac() throws UnknownHostException, SocketException {
+		byte[] srcMac = getLocalMacAddress();
 		for(int i=0; i<srcMac.length; i ++) {
 			this.m_sHeader.srcMac.addr[i]=srcMac[i];
-			
 		}
-		
 	}
 	
-	
-	public void setSrcIp(byte [] srcIP) {
+	// m_sHeader의 ip Address를 본인의 IP로 채우는 함수
+	public void setSrcIp() throws UnknownHostException {
+		byte[] srcIP = getLocalIPAddress();
 		for(int i=0; i<srcIP.length; i++) {
 			this.m_sHeader.srcIp.addr[i]=srcIP[i];
 		}
 	}
 	
+	// m_sHeader의 dst ip를 input 값으로 채우는 함수
+	public void setDstIp(byte[] input) {
+		 for(int idx = 0; idx < 4; idx++) {
+			 this.m_sHeader.dstIp.addr[idx] = input[idx];
+		 }
+	}
+	
+	// m_sHeader의 dst Mac를 input 값으로 채우는 함수
+	public void setDstMac(byte[] input) {
+		 for(int idx = 0; idx < 6; idx++) {
+			 this.m_sHeader.dstMac.addr[idx] = input[idx];
+		 }
+	}
+	
 	
 	public void setARPHeaderBeforeSend() {  // 
-		this.m_sHeader.macType=byte4To2(intToByte(1));
+//		this.m_sHeader.macType=byte4To2(intToByte(1));
 		this.m_sHeader.ipType[0]=(byte)0x00;
 		this.m_sHeader.ipType[1]=(byte)0x00;
 		this.m_sHeader.macAddrLen = 6;
 		this.m_sHeader.ipAddrLen = 4;
 		this.m_sHeader.opcode[1] = 1;
-		
 	}
-	
-	public boolean cameFromDlg(byte [] input) {  // 바로 applicatio 에서 온 비어있는 데이터
-		for (int i = 0; i < input.length; i++) {
-			if (input[i] == 0)
-				continue;
-			else
-				return false;
-		}
-		return true;
-		
-	}
-	
-	
-	// arp header 의ip주소를 string 으로 변환 ex) xxx.xxx.xxx.xxxx
-	public String getDstAddFromHeader(byte [] input) {
-		byte[] bytes = new byte[4];
-
-		String dst_Addr = "";
-		System.arraycopy(input, 24, bytes, 0, 4);
-		for (byte b : bytes) {
-			dst_Addr += Integer.toString(b & 0xFF) + ".";
-		}
-		return dst_Addr.substring(0, dst_Addr.length() - 1);
-		
-		
-		
-	}
-	
-	
 	
 	public boolean Receive(byte[] input) {
 		// ARP Layer Receive
@@ -335,6 +295,82 @@ public class ARPLayer implements BaseLayer{
 	
 	// 
 	
+	
+	// Local Mac Address 가져오는 함수
+	 public byte[] getLocalMacAddress() throws UnknownHostException, SocketException {
+		 	String result = "";
+			InetAddress ip;
+
+			ip = InetAddress.getLocalHost();
+			NetworkInterface network = NetworkInterface.getByInetAddress(ip);
+			byte[] mac = network.getHardwareAddress();
+			
+			return mac;
+	 }
+	 
+	 // Local IP Address 가져오는 함수
+	 public byte[] getLocalIPAddress() throws UnknownHostException {
+		 InetAddress local = InetAddress.getLocalHost();
+		 
+		 byte[] ip = local.getAddress();
+		 
+		 return ip;
+	 }
+
+	 
+	 // String Type IP 주소를 Byte로 변환
+	 public byte[] ipToByte(String ip) {
+		 String[] ipBuf = ip.split("[.]");
+		 byte[] buf = new byte[4];
+		 
+		 for(int idx = 0; idx < 4; idx++) {
+			 buf[idx] = (byte) Integer.parseInt(ipBuf[idx]);
+		 }
+		 
+		 return buf;
+	 }
+	 
+	 // String Type Mac 주소를 Byte로 변환
+	 public byte[] macToByte(String mac) {
+		 String[] macBuf = mac.split("-");
+		 byte[] buf = new byte[6];
+		 
+		 for(int idx = 0; idx < 6; idx++) {
+			 buf[idx] = (byte) Integer.parseInt(macBuf[idx]);
+		 }
+		 
+		 return buf;
+	 }
+	 
+	// byte 배열로 된 mac 주소를 String으로 변환하는 함수
+	public String macToString(byte[] mac) {
+		String macString = "";
+			
+		// addr에 가지고 있는 byte 배열의 byte를 가져와 두 자리의
+		// mac Address String으로 변환하여 String에 더함
+
+		for (byte b : mac) {
+			macString += String.format("%02X:", b);
+		}
+			
+		// 마지막에 붙은 ":"는 제거하여 return
+		return macString.substring(0, macString.length() - 1);
+	}
+		
+	public String ipToString(byte[] ip) {
+		String ipAddress = "";
+			
+		// addr에 가지고있는 byte를 가져와 Integer로 변환 후 .을 더함
+		for (byte b : ip) {
+			ipAddress += Integer.toString(b & 0xFF) + ".";
+		}
+			
+		// 마지막에 붙은 "."은 제거하여 return
+		return ipAddress.substring(0, ipAddress.length() - 1);
+	}
+
+
+	 
 	
 	// BaseLayer Function
 	
