@@ -1,6 +1,7 @@
 package Base_ARP;
 
 import java.net.InetAddress;
+
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.UnknownHostException;
@@ -144,13 +145,14 @@ public class ARPLayer implements BaseLayer{
 				// ARP Request 보낼 필요 없는경우
 			}
 		}
-		else {
+		else { // 처음 전송인 경우 
 			_ARPCache_Table.put(targetIpInput, new _ARPCache_Entry(new byte[6], "Incomplete", 100));
-			setSrcHeader();
+			setSrcHeader(); // 자신의 맥주소 아이피 주소 세팅 하는 것 
 			System.out.println(targetIpInput);
 			setDstIp(ipToByte(targetIpInput));
 			setDstMac(new byte[6]);
-			setDefaultHeader((byte) 0x01);
+			
+			setDefaultHeader((byte) 0x01); // hardware type, proto type, protocol length , opcode까지 처음 동작일때 헤더 셋팅  
 			byte[] _ARP_FRAME = ObjToByte(m_sHeader, input, length);
 			this.GetUnderLayer().Send(_ARP_FRAME, _ARP_FRAME.length);
 		}

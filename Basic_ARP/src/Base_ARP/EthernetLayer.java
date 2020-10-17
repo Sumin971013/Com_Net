@@ -1,6 +1,9 @@
 package Base_ARP;
 
 import java.io.ByteArrayOutputStream;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.io.IOException;
 import java.io.ObjectOutput;
@@ -59,6 +62,22 @@ public class EthernetLayer implements BaseLayer {
 	
 	
 	
+	public byte[] getLocalMacAddress() throws UnknownHostException, SocketException {
+	 	String result = "";
+		InetAddress ip;
+
+		ip = InetAddress.getLocalHost();
+		NetworkInterface network = NetworkInterface.getByInetAddress(ip);
+		byte[] mac = network.getHardwareAddress();
+		
+		return mac;
+ 
+	}
+	
+ 
+	
+	
+	
 	public boolean needToBroadCast(byte [] input) { // broadcasting 용 즉 dst Mac add =???  일때
 		
 		for(int i=0; i<6; i++) {
@@ -79,39 +98,79 @@ public class EthernetLayer implements BaseLayer {
 
 
 	public boolean Send(byte[] input, int length) {
+		
 		byte[] bytes;
 		m_sHeader.enet_data = input;
 		
-		if(input[6] == 0x00 && input[7] == 0x01) {
-			// Opcode 0x0001
-			// ARP Request Message => Protocol Type 0x0806
-			m_sHeader.enet_type[0] = (byte) 0x08;
-			m_sHeader.enet_type[1] = (byte) 0x06;
+		byte [] my_dstAddress = new byte[6]; // sender  맥주소 복사하기 용 
+		
+		
+		try {
+			byte[] srcMac=getLocalMacAddress(); // 내 맥주소 가져오기   
 			
 			
+			if(input[6] == 0x00 && input[7] == 0x01) {
+				// Opcode 0x0001
+				// ARP Request Message => Protocol Type 0x0806
+				m_sHeader.enet_type[0] = (byte) 0x08;
+				m_sHeader.enet_type[1] = (byte) 0x06;
+				
+				SetEthernetSrcAdd(srcMac); // 성진 구현한  getLocalMacAddress 로 맥주소 가져와서 헤더에 셋팅  
+				SetEthernetDstAdd(broadCastAddr); // 브로드 캐스트 주소는 static 으로 선언한 0xffffffff ... 
+				
+				
+				
+			}
+			else if (input[6] == 0x00 && input[7] == 0x02) {
+				// Opcode 0x0002
+				// ARP Reply Message => Protocol Type 0x0806
+				m_sHeader.enet_type[0] = (byte) 0x08;
+				m_sHeader.enet_type[1] = (byte) 0x06;
+				System.arraycopy(input,8,my_dstAddress,0,6); // my_dstaddress에 input 즉 위에서 내려온 데이터의 8바이트부터 즉 전송자의 맥주소 카피해서 목적지로 설정 
+				
+				SetEthernetSrcAdd(srcMac);
+				SetEthernetDstAdd(my_dstAddress);
+				
+
+				
+			}
+			else {
+				// Opcode 0x0000
+				// Normal Data Message => Protocol Type 0x0800
+				m_sHeader.enet_type[0] = (byte) 0x08;
+				m_sHeader.enet_type[1] = (byte) 0x00;
+				
+				System.arraycopy(input,8,my_dstAddress,0,6); // 이경우도 위에랑 동일 하다 
+				SetEthernetSrcAdd(srcMac);
+				SetEthernetDstAdd(my_dstAddress);
+				
+				
+			}
 			
 			
+			bytes = ObjToByte(m_sHeader, input, input.length);
 			
-		}
-		else if (input[6] == 0x00 && input[7] == 0x02) {
-			// Opcode 0x0002
-			// ARP Reply Message => Protocol Type 0x0806
-			m_sHeader.enet_type[0] = (byte) 0x08;
-			m_sHeader.enet_type[1] = (byte) 0x06;
-		}
-		else {
-			// Opcode 0x0000
-			// Normal Data Message => Protocol Type 0x0800
-			m_sHeader.enet_type[0] = (byte) 0x08;
-			m_sHeader.enet_type[1] = (byte) 0x00;
+			if(this.GetUnderLayer().Send(bytes, bytes.length))
+				
+				return true;
+			
+			
+			else
+				return false;
+			
+		} 
+		
+		
+		catch (UnknownHostException | SocketException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		
 		}
 		
-		bytes = ObjToByte(m_sHeader, input, input.length);
 		
-		if(this.GetUnderLayer().Send(bytes, bytes.length))
-			return true;
-		else
-			return false;
+		
+		return false;
+		
 		
 	}
 	
