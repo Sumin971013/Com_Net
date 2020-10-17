@@ -2,6 +2,7 @@ package Base_ARP;
 
 import java.io.ByteArrayOutputStream;
 import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.io.IOException;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
@@ -15,10 +16,8 @@ public class EthernetLayer implements BaseLayer {
 	public BaseLayer p_UnderLayer = null;
 	public ArrayList<BaseLayer> p_aUpperLayer = new ArrayList<BaseLayer>();
 	
-	private final static byte[] enetType_ARP=byte4To2(intToByte(0x0806));
-	private final static byte[] broadCastAddr = {(byte) 0xFF,(byte) 0xFF,(byte) 0xFF,(byte) 0xFF,(byte) 0xFF,(byte) 0xFF };	
-	
-	_ETHERNET_HEADER m_sHeader = new _ETHERNET_HEADER(); // ethernet header생성자   
+	_ETHERNET_HEADER m_sHeader = new _ETHERNET_HEADER(); // ethernet header생성자
+	static byte[] myEnetAddress;
 
 	private class _ETHERNET_ADDR {
 		private byte[] addr = new byte[6];
@@ -39,10 +38,10 @@ public class EthernetLayer implements BaseLayer {
 		byte[] enet_type;
 		byte[] enet_data;
 
-		public _ETHERNET_HEADER() {
-			this.enet_dstaddr = new _ETHERNET_ADDR();
-			this.enet_srcaddr = new _ETHERNET_ADDR();
-			this.enet_type = new byte[2];
+		public _ETHERNET_HEADER() {							// 14 Bytes
+			this.enet_dstaddr = new _ETHERNET_ADDR();		// 6 Bytes / 0 ~ 5
+			this.enet_srcaddr = new _ETHERNET_ADDR();		// 6 Bytes / 6 ~ 11
+			this.enet_type = new byte[2];					// 2 Bytes / 12 ~ 13
 			this.enet_data = null;
 		}
 	}
@@ -51,32 +50,16 @@ public class EthernetLayer implements BaseLayer {
 		// super(pName);
 		pLayerName = pName;
 		ResetHeader();
+		try {
+			myEnetAddress = ((ARPLayer) this.GetUpperLayer(0)).getLocalMacAddress();
+		} catch (UnknownHostException | SocketException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	private void ResetHeader() {
 		m_sHeader = new _ETHERNET_HEADER();
 	}
-	
-	
-	
-	public boolean needToBroadCast(byte [] input) { // broadcasting 용 즉 dst Mac add =???  일때
-		
-		for(int i=0; i<6; i++) {
-			
-			if(input[i+18]==(byte)0x00) {
-				continue;
-			}
-			
-			else {
-				return false;
-				
-			}
-		}
-		
-		return true;
-		
-	}
-
 
 	public boolean Send(byte[] input, int length) {
 		byte[] bytes;
@@ -87,10 +70,6 @@ public class EthernetLayer implements BaseLayer {
 			// ARP Request Message => Protocol Type 0x0806
 			m_sHeader.enet_type[0] = (byte) 0x08;
 			m_sHeader.enet_type[1] = (byte) 0x06;
-			
-			
-			
-			
 			
 		}
 		else if (input[6] == 0x00 && input[7] == 0x02) {
@@ -106,70 +85,66 @@ public class EthernetLayer implements BaseLayer {
 			m_sHeader.enet_type[1] = (byte) 0x00;
 		}
 		
+		setEthernetHeader(input);
 		bytes = ObjToByte(m_sHeader, input, input.length);
 		
 		if(this.GetUnderLayer().Send(bytes, bytes.length))
 			return true;
 		else
 			return false;
-		
 	}
 	
-	
-	public void setEthernetHeader(byte [] input) throws SocketException{
-		byte [] my_dstADD=new byte[6];
-		byte [] my_srcADD=new byte[6];
-		byte [] my_enetType = new byte[2];
-		
-		
-		if(needToBroadCast(input)) {
-			System.arraycopy(broadCastAddr, 0, my_dstADD, 0,6);  // 브로드 캐스팅 해야하면 사전에 final로 설정한  0xfffffff로 dstadd 설정
-			
-			
-		}
-		else {
-			System.arraycopy(input, 18, my_dstADD, 0, 6); // 브로드 캐스팅이 아니면 그냥 헤더는 위에서 받은 데이터의 송신 수신자 주소 확인해서 그걸로 ㅓㄹ정 
-		
-		}
-		
-		System.arraycopy(enetType_ARP, 0, my_enetType, 0, 2);
-		
-		
-		
-		SetEthernetDstAdd(my_dstADD);
-		SetEthernetSrcAdd(my_srcADD);
-		
-		
-		
-	}
-	
-	
-	public void SetEthernetDstAdd(byte[] input){
-		for(int i=0; i<6; i++) {
-			m_sHeader.enet_srcaddr.addr[i]=input[i];
-		}
-		
-
-	}
-	
-	public void SetEthernetSrcAdd(byte[] input) {
-		for(int i=0; i<6; i++) {
-			m_sHeader.enet_dstaddr.addr[i]=input[i];
-		}
-		
-	}
-	
+	// EthernetHeader 의 Addr을 ARP Header의 주소로 채운다
+	public void setEthernetHeader(byte[] input) {
+		System.arraycopy(input, 8, m_sHeader.enet_srcaddr.addr, 0, 6);
+		System.arraycopy(input, 18, m_sHeader.enet_dstaddr.addr, 0, 6);
+	}	
 
 	public boolean Receive(byte[] input) {
-		byte[] bytes;
+		byte[] buf;
+		
+		// Target이 자신도 아니고 BroadCast도 아닌 경우 drop
+		if(!isTargetMe(input) && !isBroadCast(input)) 
+			return false;
 		
 		if (input[12] == 0x08 && input[13] == 0x06) {
-			// Protocol Type 0x0806
-			// ARP Message ( Request or Reply ) 인 경우
+			buf = removeEthernetHeader(input, input.length);
+			this.GetUpperLayer(0).Receive(buf);
 		}
 		else if (input[12] == 0x08 && input[13] == 0x00) {
-			// Protocol Type 0x0800
-			// IPv4 Message
+			buf = removeEthernetHeader(input, input.length);
+			this.GetUpperLayer(1).Receive(buf);
+		}
+		else
+			return false;
+		return true;
+	}
+	
+	// Ethernet Header를 Packet에서 제거해주는 함수
+	private byte[] removeEthernetHeader(byte[] input, int length) {
+		byte[] buf = new byte[length - 14];
+		
+		for(int idx = 0; idx < length - 14; idx++) {
+			buf[idx] = input[idx + 14];
+		}
+		
+		return buf;
+	}
+	
+	// Receive한 Packet의 Dst Address가 자신인지 확인하는 함수
+	private boolean isTargetMe(byte[] input) {
+		for(int idx = 0; idx < 6; idx++) {
+			if(input[idx] != myEnetAddress[idx])
+				return false;
+		}
+		return true;
+	}
+	
+	// Receive한 Packet이 BroadCast인지 확인하는 함수
+	private boolean isBroadCast(byte[] input) {
+		for(int idx = 0; idx < 6; idx++) {
+			if(input[idx] != (byte) 0xFF)
+				return false;
 		}
 		return true;
 	}
@@ -177,33 +152,14 @@ public class EthernetLayer implements BaseLayer {
 	public byte[] ObjToByte(_ETHERNET_HEADER Header, byte[] input, int length) {
 		byte[] buf = new byte[length + 14];
 		
-		System.arraycopy(Header.enet_dstaddr, 0, buf, 0, 6);
-		System.arraycopy(Header.enet_srcaddr, 0, buf, 6, 6);
+		System.arraycopy(Header.enet_dstaddr.addr, 0, buf, 0, 6);
+		System.arraycopy(Header.enet_srcaddr.addr, 0, buf, 6, 6);
 		System.arraycopy(Header.enet_type, 0, buf, 12, 2);
 
 		System.arraycopy(input, 0, buf, 14, length);
 
 		return buf;
 	}
-	
-	
-	
-	public static byte[] intToByte(int value) {
-		byte[] byteArray = new byte[4];
-		byteArray[0] = (byte) (value >> 24);
-		byteArray[1] = (byte) (value >> 16);
-		byteArray[2] = (byte) (value >> 8);
-		byteArray[3] = (byte) (value);
-		return byteArray;
-	}
-
-	public static byte[] byte4To2(byte[] fourByte) {
-		byte[] byteArray = new byte[2];
-		byteArray[0] = fourByte[2];
-		byteArray[1] = fourByte[3];
-		return byteArray;
-	}
-	
 
 	@Override
 	public void SetUnderLayer(BaseLayer pUnderLayer) {

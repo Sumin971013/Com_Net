@@ -20,10 +20,11 @@ public class ARPLayer implements BaseLayer{
 	// ARP Cache Table & Proxy Table
 	public Hashtable<String, _ARPCache_Entry> _ARPCache_Table = new Hashtable<>();
 	public Hashtable<String, _Proxy_Entry> _Proxy_Table = new Hashtable<>();
+	private final byte[] _BroadCast_Mac = {(byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF};
 	
 	// Device's Info
-	public _IP_ADDR myIpAddress = new _IP_ADDR();
-	public _ETHERNET_ADDR myMacAddress = new _ETHERNET_ADDR();
+	public byte[] myIpAddress;
+	public byte[] myMacAddress;
 	public String targetIpInput = new String();
 	public String gratMacInput = new String();
 	
@@ -61,6 +62,12 @@ public class ARPLayer implements BaseLayer{
 		// super(pName);
 		pLayerName = pName;
 		ResetHeader();
+		try {
+			myIpAddress = getLocalIPAddress();
+			myMacAddress = getLocalMacAddress();
+		} catch (UnknownHostException | SocketException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	private class _IP_ADDR {
@@ -139,17 +146,25 @@ public class ARPLayer implements BaseLayer{
 			
 			if(tempEntry.status.equals("Incomplete")) {	
 				// Incomplete 상태라 Request 보내야하는경우
+				setSrcIp();
+				setSrcMac();
+				setDstIp(ipToByte(targetIpInput));
+				setDstMac(_BroadCast_Mac);
+				setDefaultHeader((byte) 0x01);
+				byte[] _ARP_FRAME = ObjToByte(m_sHeader, input, length);
+				this.GetUnderLayer().Send(_ARP_FRAME, _ARP_FRAME.length);
 			}
 			else {	
 				// ARP Request 보낼 필요 없는경우
+				this.GetUnderLayer().Send(input, input.length);
 			}
 		}
 		else {
 			_ARPCache_Table.put(targetIpInput, new _ARPCache_Entry(new byte[6], "Incomplete", 100));
-			setSrcHeader();
-			System.out.println(targetIpInput);
+			setSrcIp();
+			setSrcMac();
 			setDstIp(ipToByte(targetIpInput));
-			setDstMac(new byte[6]);
+			setDstMac(_BroadCast_Mac);
 			setDefaultHeader((byte) 0x01);
 			byte[] _ARP_FRAME = ObjToByte(m_sHeader, input, length);
 			this.GetUnderLayer().Send(_ARP_FRAME, _ARP_FRAME.length);
@@ -158,6 +173,7 @@ public class ARPLayer implements BaseLayer{
 		return false;
 	}
 	
+	// ARP Header의 기본값들을 채워주는 함수 + opcode
 	public void setDefaultHeader(byte opcode) {
 		this.m_sHeader.macType[1] = (byte) 0x01;
 		this.m_sHeader.ipType[0] = (byte) 0x80;
@@ -166,19 +182,7 @@ public class ARPLayer implements BaseLayer{
 		this.m_sHeader.macAddrLen = (byte) 0x06;
 		this.m_sHeader.opcode[1] = opcode;
 	}
-	
-	public void setSrcHeader() {
-		try {
-			setSrcIp();
-			setSrcMac();
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		} catch (SocketException e) {
-			e.printStackTrace();
-		}
-		
-	}
-	
+
 	// ARPCache Table이 ip에 해당되는 Element를 가지고있는지 검사
 	public boolean containsARP(String ip) {
 		if(_ARPCache_Table.containsKey(ip)) 
@@ -196,18 +200,16 @@ public class ARPLayer implements BaseLayer{
 	}
 	
 	// m_sHeader의 mac Address를 본인의 Mac으로 채우는 함수
-	public void setSrcMac() throws UnknownHostException, SocketException {
-		byte[] srcMac = getLocalMacAddress();
-		for(int i=0; i<srcMac.length; i ++) {
-			this.m_sHeader.srcMac.addr[i]=srcMac[i];
+	public void setSrcMac() {
+		for(int idx = 0; idx < 6; idx++) {
+			this.m_sHeader.srcMac.addr[idx] = myMacAddress[idx];
 		}
 	}
 	
 	// m_sHeader의 ip Address를 본인의 IP로 채우는 함수
-	public void setSrcIp() throws UnknownHostException {
-		byte[] srcIP = getLocalIPAddress();
-		for(int i=0; i<srcIP.length; i++) {
-			this.m_sHeader.srcIp.addr[i]=srcIP[i];
+	public void setSrcIp() {
+		for(int idx = 0; idx < 4; idx++) {
+			this.m_sHeader.srcIp.addr[idx] = myIpAddress[idx];
 		}
 	}
 	
@@ -225,27 +227,47 @@ public class ARPLayer implements BaseLayer{
 		 }
 	}
 	
-	
-	public void setARPHeaderBeforeSend() {  // 
-//		this.m_sHeader.macType=byte4To2(intToByte(1));
-		this.m_sHeader.ipType[0]=(byte)0x00;
-		this.m_sHeader.ipType[1]=(byte)0x00;
-		this.m_sHeader.macAddrLen = 6;
-		this.m_sHeader.ipAddrLen = 4;
-		this.m_sHeader.opcode[1] = 1;
-	}
-	
 	public boolean Receive(byte[] input) {
-		// ARP Layer Receive
-		byte[] opcode = new byte[2];
-		
+		if(input[7]==0x01) {
+			byte[] inputIp = new byte[4];
+			byte[] inputMac = new byte[6];
+			System.arraycopy(input, 14, inputIp, 0, 4);
+			System.arraycopy(input, 8, inputMac, 0, 6);
+			if(isTargetMe(inputIp)) {
+				_ARPCache_Entry entry = new _ARPCache_Entry(inputMac,"Complete",100);
+				_ARPCache_Table.put(ipToString(inputIp), entry);
+				sendReply(input, input.length);
+			}
+			else if(isItMyProxy(inputIp)) {
+				
+			}
+		}
 		
 		return false;
 	}
 	
-	// Swaping 함수
-	// src와 dst의 Mac, Ip Address Swap
-	private byte[] Swaping(byte[] input) {
+	// Reply Message를 보내는 함수
+	public void sendReply(byte[] input, int length) {
+		byte[] buf = new byte[length];
+		System.arraycopy(input, 0, buf, 0, length);
+		for(int idx = 0; idx < 6; idx++) {
+			buf[idx+18] = myMacAddress[idx];
+		}
+		buf = swaping(buf);
+		buf[7] = (byte) 0x02;
+		this.GetUnderLayer().Send(buf, buf.length);
+	}
+	
+	public boolean isTargetMe(byte[] input) {
+		for(int idx = 0; idx < 4; idx++) {
+			if(input[idx] != myIpAddress[idx])
+				return false;
+		}
+		return true;
+	}
+	
+	// src와 dst의 Mac, Ip Address Swap하는 함수
+	private byte[] swaping(byte[] input) {
 		byte[] srcIp = new byte[6];
 		byte[] srcMac = new byte[4];
 		
@@ -279,23 +301,13 @@ public class ARPLayer implements BaseLayer{
 		return input;
 	}
 	
-	// isItMyARP 함수
-	// 수신한 ARP Message가 본인이 보낸 ARP Request/Reply인지 확인한다
-	private boolean isItMyARP(byte[] input) {
-		
-		return true;
-	}
-	
 	// isItMyProxy 함수
 	// 수신한 ARP Message의 mac주소가 자신이 보유하고 있는 Proxy의 Mac인지 검사하는 함수
 	private boolean isItMyProxy(byte[] input) {
 		
 		return false;
 	}
-	
-	// 
-	
-	
+
 	// Local Mac Address 가져오는 함수
 	 public byte[] getLocalMacAddress() throws UnknownHostException, SocketException {
 		 	String result = "";
@@ -369,9 +381,6 @@ public class ARPLayer implements BaseLayer{
 		return ipAddress.substring(0, ipAddress.length() - 1);
 	}
 
-
-	 
-	
 	// BaseLayer Function
 	
 	@Override
