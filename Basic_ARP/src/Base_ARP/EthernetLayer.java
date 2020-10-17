@@ -175,7 +175,7 @@ public class EthernetLayer implements BaseLayer {
 	}
 	
 	
-	public void setEthernetHeader(byte [] input) throws SocketException{
+	/*public void setEthernetHeader(byte [] input) throws SocketException{
 		byte [] my_dstADD=new byte[6];
 		byte [] my_srcADD=new byte[6];
 		byte [] my_enetType = new byte[2];
@@ -200,7 +200,7 @@ public class EthernetLayer implements BaseLayer {
 		
 		
 		
-	}
+	}*/
 	
 	
 	public void SetEthernetDstAdd(byte[] input){
@@ -222,7 +222,7 @@ public class EthernetLayer implements BaseLayer {
 	public boolean isItMyPacket_send(byte[] input) { // 내가 보낸 패킷 input의 src  주소와 m_sHeader의 src 주소가 같으면 true   즉 내가 보낸것 
 		
 		for(int i=0; i<6; i++) {
-			if(m_sHeader.enet_srcaddr.addr[i] == input[6+i]) {
+			if(m_sHeader.enet_srcaddr.addr[i] == input[6+i]) { //  input의 6번째 인덱스부터 src의 주소이다 
 				continue;
 			}
 			
@@ -273,7 +273,7 @@ public class EthernetLayer implements BaseLayer {
 	
 	public boolean Receive(byte[] input) {
 		byte[] bytes;
-		boolean MyPacket,Mine,BroadCast;
+		boolean MyPacket,Mine_to_receive,BroadCast;
 		byte[] data;
 		
 		MyPacket=isItMyPacket_send(input); // 내가 보낸건지 확인 하는 과정  
@@ -291,9 +291,10 @@ public class EthernetLayer implements BaseLayer {
 			
 			
 			if(BroadCast==false) { // input으로 온 dst 주소가 특정 주소이다  
-				Mine=isItMineToReceive(input); // input으로 들어온 dst주소가 내 맥주소랑 일치하는지?  
+				Mine_to_receive=isItMineToReceive(input); // input으로 들어온 dst주소가 내 맥주소랑 일치하는지?  
 				
-				if(Mine==false) { // 내가 받을 패킷이 아니라면 받지 않는다   
+				if(Mine_to_receive==false) { // 내가 받을 패킷이 아니라면 받지 않는다   
+					
 					return false;
 				}
 				
@@ -306,19 +307,22 @@ public class EthernetLayer implements BaseLayer {
 			// Protocol Type 0x0806
 			// ARP Message ( Request or Reply ) 인 경우
 			
-			Mine=isItMineToReceive(input);
+			Mine_to_receive=isItMineToReceive(input);
 			BroadCast=isBroadcast(input);
 			
-			if(Mine == true || BroadCast==true) {
-				data=RemoveEthernetHeader(input,input.length);
-				this.GetUnderLayer().Receive(data);
+			if(Mine_to_receive == true || BroadCast==true) { // input의 dst 주소가 내 src와 일치하거나  input의 dst주소가 브로드캐스트 주소이면 ?  
+				
+				data=RemoveEthernetHeader(input,input.length); // ethernet header 제거해서 arp layer로  전송을 한다 
+				this.GetUpperLayer(0).Receive(data); 
 				
 				return true;
 				
 			}
 			
 			else {
+				
 				return false;
+			
 			}
 				
 			
