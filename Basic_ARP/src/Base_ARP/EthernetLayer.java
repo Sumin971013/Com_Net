@@ -205,7 +205,7 @@ public class EthernetLayer implements BaseLayer {
 	
 	public void SetEthernetDstAdd(byte[] input){
 		for(int i=0; i<6; i++) {
-			m_sHeader.enet_srcaddr.addr[i]=input[i];
+			m_sHeader.enet_dstaddr.addr[i]=input[i];
 		}
 		
 
@@ -213,22 +213,123 @@ public class EthernetLayer implements BaseLayer {
 	
 	public void SetEthernetSrcAdd(byte[] input) {
 		for(int i=0; i<6; i++) {
-			m_sHeader.enet_dstaddr.addr[i]=input[i];
+			m_sHeader.enet_srcaddr.addr[i]=input[i];
 		}
 		
 	}
 	
-
+    
+	public boolean isItMyPacket_send(byte[] input) { // 내가 보낸 패킷 input의 src  주소와 m_sHeader의 src 주소가 같으면 true   즉 내가 보낸것 
+		
+		for(int i=0; i<6; i++) {
+			if(m_sHeader.enet_srcaddr.addr[i] == input[6+i]) {
+				continue;
+			}
+			
+			else {
+				return false;
+			}
+			
+		}
+		return true;
+		
+	}
+	
+	public boolean isItMineToReceive(byte [] input) { // input에 있는 목적지 주소가 내 맥주소랑 같은지 확인  
+		for(int i=0; i<6; i++) {
+			if(m_sHeader.enet_srcaddr.addr[i]==input[i]) {
+				continue;
+			}
+			else {
+				return false;
+			}
+			
+		}
+		return true;
+		
+	}
+	
+	private boolean isBroadcast(byte[] input) {// input에 있는 주소가 브로드 캐스팅 주소인지 확인 
+		for(int i = 0; i< 6; i++)
+			
+			if (input[i] != (byte) 0xff)
+				return false;
+		
+		
+		return true;
+	}
+	
+	
+	
+	public byte[] RemoveEthernetHeader(byte[] input, int length) { // ethernet header 제거 함수  
+		byte[] cpyInput = new byte[length - 14];
+		
+		System.arraycopy(input, 14, cpyInput, 0, length - 14);
+		
+		input = cpyInput;
+		return input;
+	}
+	
+	
 	public boolean Receive(byte[] input) {
 		byte[] bytes;
+		boolean MyPacket,Mine,BroadCast;
+		byte[] data;
 		
-		if (input[12] == 0x08 && input[13] == 0x06) {
+		MyPacket=isItMyPacket_send(input); // 내가 보낸건지 확인 하는 과정  
+		
+		if(MyPacket==true) { // 내가 보낸거면 안 받는다 
+			
+			return false; 
+			
+		}
+		
+		// 내가 보낸게 아니라면 받긴 해야한다 
+		
+		else {
+			BroadCast=isBroadcast(input);
+			
+			
+			if(BroadCast==false) { // input으로 온 dst 주소가 특정 주소이다  
+				Mine=isItMineToReceive(input); // input으로 들어온 dst주소가 내 맥주소랑 일치하는지?  
+				
+				if(Mine==false) { // 내가 받을 패킷이 아니라면 받지 않는다   
+					return false;
+				}
+				
+			}
+		}
+		
+	
+		
+		if(input[12] == 0x08 && input[13] == 0x06) {
 			// Protocol Type 0x0806
 			// ARP Message ( Request or Reply ) 인 경우
+			
+			Mine=isItMineToReceive(input);
+			BroadCast=isBroadcast(input);
+			
+			if(Mine == true || BroadCast==true) {
+				data=RemoveEthernetHeader(input,input.length);
+				this.GetUnderLayer().Receive(data);
+				
+				return true;
+				
+			}
+			
+			else {
+				return false;
+			}
+				
+			
 		}
+		
 		else if (input[12] == 0x08 && input[13] == 0x00) {
 			// Protocol Type 0x0800
 			// IPv4 Message
+			
+			
+			
 		}
 		return true;
 	}
