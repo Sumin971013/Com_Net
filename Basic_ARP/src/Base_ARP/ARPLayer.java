@@ -228,11 +228,12 @@ public class ARPLayer implements BaseLayer{
 	}
 	
 	public boolean Receive(byte[] input) {
-		if(input[7]==0x01) {
-			byte[] inputIp = new byte[4];
-			byte[] inputMac = new byte[6];
-			System.arraycopy(input, 14, inputIp, 0, 4);
-			System.arraycopy(input, 8, inputMac, 0, 6);
+		byte[] inputIp = new byte[4];
+		byte[] inputMac = new byte[6];
+		System.arraycopy(input, 14, inputIp, 0, 4);
+		System.arraycopy(input, 8, inputMac, 0, 6);
+		
+		if(input[7] == 0x01) {
 			if(isTargetMe(inputIp)) {
 				_ARPCache_Entry entry = new _ARPCache_Entry(inputMac,"Complete",100);
 				_ARPCache_Table.put(ipToString(inputIp), entry);
@@ -240,6 +241,13 @@ public class ARPLayer implements BaseLayer{
 			}
 			else if(isItMyProxy(inputIp)) {
 				
+			}
+		}
+		else if(input[7] == 0x02) {
+			if(isTargetMe(inputIp)) {
+				_ARPCache_Entry entry = _ARPCache_Table.get(ipToString(inputIp));
+				entry.addr = inputMac;
+				entry.status = "Complete";
 			}
 		}
 		
@@ -258,6 +266,7 @@ public class ARPLayer implements BaseLayer{
 		this.GetUnderLayer().Send(buf, buf.length);
 	}
 	
+	// input으로 받은 IP를 자신의 IP와 비교하는 함수
 	public boolean isTargetMe(byte[] input) {
 		for(int idx = 0; idx < 4; idx++) {
 			if(input[idx] != myIpAddress[idx])
@@ -310,7 +319,6 @@ public class ARPLayer implements BaseLayer{
 
 	// Local Mac Address 가져오는 함수
 	 public byte[] getLocalMacAddress() throws UnknownHostException, SocketException {
-		 	String result = "";
 			InetAddress ip;
 
 			ip = InetAddress.getLocalHost();
