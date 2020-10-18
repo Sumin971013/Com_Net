@@ -228,25 +228,29 @@ public class ARPLayer implements BaseLayer{
 	}
 	
 	public boolean Receive(byte[] input) {
-		byte[] inputIp = new byte[4];
-		byte[] inputMac = new byte[6];
-		System.arraycopy(input, 14, inputIp, 0, 4);
-		System.arraycopy(input, 8, inputMac, 0, 6);
+		byte[] srcIp = new byte[4];
+		byte[] srcMac = new byte[6];
+		byte[] dstIp = new byte[4];
+		byte[] dstMac = new byte[6];
+		System.arraycopy(input, 8, srcMac, 0, 6);
+		System.arraycopy(input, 14, srcIp, 0, 4);
+		System.arraycopy(input, 18, dstIp, 0, 4);
+		System.arraycopy(input, 24, dstMac, 0, 6);
 		
 		if(input[7] == 0x01) {
-			if(isTargetMe(inputIp)) {
-				_ARPCache_Entry entry = new _ARPCache_Entry(inputMac,"Complete",100);
-				_ARPCache_Table.put(ipToString(inputIp), entry);
+			if(isTargetMe(dstIp)) {
+				_ARPCache_Entry entry = new _ARPCache_Entry(srcMac,"Complete",100);
+				_ARPCache_Table.put(ipToString(srcIp), entry);
 				sendReply(input, input.length);
 			}
-			else if(isItMyProxy(inputIp)) {
+			else if(isItMyProxy(dstIp)) {
 				
 			}
 		}
 		else if(input[7] == 0x02) {
-			if(isTargetMe(inputIp)) {
-				_ARPCache_Entry entry = _ARPCache_Table.get(ipToString(inputIp));
-				entry.addr = inputMac;
+			if(isTargetMe(dstIp)) {
+				_ARPCache_Entry entry = _ARPCache_Table.get(ipToString(srcIp));
+				entry.addr = srcMac;
 				entry.status = "Complete";
 			}
 		}
@@ -261,9 +265,9 @@ public class ARPLayer implements BaseLayer{
 		for(int idx = 0; idx < 6; idx++) {
 			buf[idx+18] = myMacAddress[idx];
 		}
-		buf = swaping(buf);
-		buf[7] = (byte) 0x02;
-		this.GetUnderLayer().Send(buf, buf.length);
+		byte[] replyBuf = swaping(buf);
+		replyBuf[7] = (byte) 0x02;
+		this.GetUnderLayer().Send(replyBuf, replyBuf.length);
 	}
 	
 	// input으로 받은 IP를 자신의 IP와 비교하는 함수
@@ -277,37 +281,22 @@ public class ARPLayer implements BaseLayer{
 	
 	// src와 dst의 Mac, Ip Address Swap하는 함수
 	private byte[] swaping(byte[] input) {
-		byte[] srcIp = new byte[6];
-		byte[] srcMac = new byte[4];
+		byte[] buf = new byte[input.length];
 		
-		byte[] dstIp = new byte[6];
-		byte[] dstMac = new byte[4];
-		
-		// 현재 Mac Address 저장
-		for (int idx = 0; idx < 4; idx++) {
-			srcMac[idx] = input[8 + idx];
-			dstMac[idx] = input[18 + idx];
+		System.arraycopy(input, 0, buf, 0, input.length);
+		// Mac 주소 스왑
+		for(int idx = 0; idx < 6; idx++) {
+			buf[idx + 8] = input[idx + 18];
+			buf[idx + 18] = input[idx + 8];
 		}
 		
-		// 현재 IP Address 저장
-		for (int idx = 0; idx < 6; idx++) {
-			srcIp[idx] = input[14 + idx];
-			dstIp[idx] = input[24 + idx];
+		// IP 주소 스왑
+		for(int idx = 0; idx < 4; idx++) {
+			buf[idx + 14] = input[idx + 24];
+			buf[idx + 24] = input[idx + 14];
 		}
 		
-		// Swap된 Mac Address 입력
-		for (int idx = 0; idx < 4; idx++) {
-			input[8 + idx] = dstMac[idx];
-			input[18 + idx] = srcMac[idx];
-		}
-		
-		// Swap된 Ip Address 입력
-		for (int idx = 0; idx < 6; idx++) {
-			input[14 + idx] = dstIp[idx];
-			input[24 + idx] = srcIp[idx];
-		}
-		
-		return input;
+		return buf;
 	}
 	
 	// isItMyProxy 함수

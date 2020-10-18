@@ -1,6 +1,8 @@
 package Base_ARP;
 
 import java.io.ByteArrayOutputStream;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.io.IOException;
@@ -57,6 +59,18 @@ public class EthernetLayer implements BaseLayer {
 		}
 	}
 	
+	// Local Mac Address 가져오는 함수
+	 public byte[] getLocalMacAddress() throws UnknownHostException, SocketException {
+			InetAddress ip;
+
+			ip = InetAddress.getLocalHost();
+			NetworkInterface network = NetworkInterface.getByInetAddress(ip);
+			byte[] mac = network.getHardwareAddress();
+			
+			return mac;
+	 }
+
+	
 	private void ResetHeader() {
 		m_sHeader = new _ETHERNET_HEADER();
 	}
@@ -65,16 +79,9 @@ public class EthernetLayer implements BaseLayer {
 		byte[] bytes;
 		m_sHeader.enet_data = input;
 		
-		if(input[6] == 0x00 && input[7] == 0x01) {
+		if(input[7] == 0x01 && input[7] == 0x02) {
 			// Opcode 0x0001
 			// ARP Request Message => Protocol Type 0x0806
-			m_sHeader.enet_type[0] = (byte) 0x08;
-			m_sHeader.enet_type[1] = (byte) 0x06;
-			
-		}
-		else if (input[6] == 0x00 && input[7] == 0x02) {
-			// Opcode 0x0002
-			// ARP Reply Message => Protocol Type 0x0806
 			m_sHeader.enet_type[0] = (byte) 0x08;
 			m_sHeader.enet_type[1] = (byte) 0x06;
 		}
@@ -117,6 +124,7 @@ public class EthernetLayer implements BaseLayer {
 		}
 		else
 			return false;
+		
 		return true;
 	}
 	
