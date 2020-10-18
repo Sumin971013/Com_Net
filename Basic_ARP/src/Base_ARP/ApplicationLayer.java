@@ -67,13 +67,13 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 	static Hashtable<String, _ARPCache_Entry> _ARPCache_Table;
 	static Hashtable<String, _Proxy_Entry> _Proxy_Table;
 	
-	public static void main(String[] args) throws UnknownHostException {		
-		m_LayerMgr.AddLayer(new ApplicationLayer("GUI"));
-		m_LayerMgr.AddLayer(new TCPLayer("TCP"));
-		m_LayerMgr.AddLayer(new IPLayer("IP"));
+	public static void main(String[] args) throws UnknownHostException {
+		m_LayerMgr.AddLayer(new NILayer("NI"));
 		m_LayerMgr.AddLayer(new ARPLayer("ARP"));
 		m_LayerMgr.AddLayer(new EthernetLayer("ETHERNET"));
-		m_LayerMgr.AddLayer(new NILayer("NI"));
+		m_LayerMgr.AddLayer(new IPLayer("IP"));
+		m_LayerMgr.AddLayer(new TCPLayer("TCP"));
+		m_LayerMgr.AddLayer(new ApplicationLayer("GUI"));
 		
 		m_LayerMgr.ConnectLayers(" NI ( *ETHERNET ( *ARP +IP ( -ARP *TCP ( *GUI ) ) ) )");
 		
@@ -377,7 +377,6 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 	
 	@Override
 	public void SetUnderLayer(BaseLayer pUnderLayer) {
-		// TODO Auto-generated method stub
 		if (pUnderLayer == null)
 			return;
 		this.p_UnderLayer = pUnderLayer;
@@ -385,7 +384,6 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 
 	@Override
 	public void SetUpperLayer(BaseLayer pUpperLayer) {
-		// TODO Auto-generated method stub
 		if (pUpperLayer == null)
 			return;
 		this.p_aUpperLayer.add(nUpperLayerCount++, pUpperLayer);
@@ -394,13 +392,11 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 
 	@Override
 	public String GetLayerName() {
-		// TODO Auto-generated method stub
 		return pLayerName;
 	}
 
 	@Override
 	public BaseLayer GetUnderLayer() {
-		// TODO Auto-generated method stub
 		if (p_UnderLayer == null)
 			return null;
 		return p_UnderLayer;
@@ -408,7 +404,6 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 
 	@Override
 	public BaseLayer GetUpperLayer(int nindex) {
-		// TODO Auto-generated method stub
 		if (nindex < 0 || nindex > nUpperLayerCount || nUpperLayerCount < 0)
 			return null;
 		return p_aUpperLayer.get(nindex);
