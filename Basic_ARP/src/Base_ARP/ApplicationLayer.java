@@ -2,20 +2,13 @@ package Base_ARP;
 
 import java.awt.Color;
 import java.awt.Container;
-import java.awt.FileDialog;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Hashtable;
-import java.util.List;
+import java.util.StringTokenizer;
 import java.util.regex.Pattern;
 
 import javax.swing.*;
@@ -67,10 +60,12 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 	static Hashtable<String, _ARPCache_Entry> _ARPCache_Table;
 	static Hashtable<String, _Proxy_Entry> _Proxy_Table;
 	
+	static int proxyCount = 0;
+	
 	public static void main(String[] args) throws UnknownHostException {
-		m_LayerMgr.AddLayer(new NILayer("NI"));
 		m_LayerMgr.AddLayer(new ARPLayer("ARP"));
 		m_LayerMgr.AddLayer(new EthernetLayer("ETHERNET"));
+		m_LayerMgr.AddLayer(new NILayer("NI"));
 		m_LayerMgr.AddLayer(new IPLayer("IP"));
 		m_LayerMgr.AddLayer(new TCPLayer("TCP"));
 		m_LayerMgr.AddLayer(new ApplicationLayer("GUI"));
@@ -116,6 +111,19 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 		}
 	}
 	
+	// Proxy가 Add 또는 Delete되었을때 GUI를 갱신하는 함수
+	public static void updateProxyGUI() {
+		Enumeration<String> proxyKeys = _Proxy_Table.keys();
+		ListModel_Proxy.removeAllElements();
+		while(proxyKeys.hasMoreElements()) {
+			String ipKey = (String) proxyKeys.nextElement();
+			_Proxy_Entry tempEntry = _Proxy_Table.get(ipKey);
+			String macAddress = ((ARPLayer) m_LayerMgr.GetLayer("ARP")).macToString(tempEntry.addr);
+			String model = String.format("%18s%20s%23s", tempEntry.hostName, ipKey, macAddress);
+			ListModel_Proxy.addElement(model);
+		}
+	}
+	
 	// Button EventListener 부분
 	class btnClickEvent implements ActionListener {
 
@@ -137,10 +145,18 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 				}
 			}
 			if (e.getSource() == Btn_ProxyAdd) {
-				
+				ProxyAddPopUP();
 			}
 			if (e.getSource() == Btn_ProxyDelete) {
-				
+				if(List_Proxy.getSelectedValue() != null) {
+					StringTokenizer st = new StringTokenizer(
+							List_Proxy.getSelectedValue().toString().trim(), " ");
+					st.nextToken();
+					String ip = st.nextToken();
+					((ARPLayer) m_LayerMgr.GetLayer("ARP")).deleteProxy(ip);
+					updateProxyGUI();
+					Frame_ProxyAddPopup.dispose();
+				}
 			}
 			if (e.getSource() == Btn_GratSend) {
 				((ARPLayer) m_LayerMgr.GetLayer("ARP")).gratMacInput = TF_HWAddress.getText();
@@ -153,17 +169,22 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 				dispose();
 			}
 			if (e.getSource() == Btn_ProxyAdd_Ok) {
-				
+				((ARPLayer) m_LayerMgr.GetLayer("ARP")).
+				addProxy(TF_ProxyIPAddress.getText(), TF_ProxyMacAddress.getText(), 
+						ComboBox_Device.getSelectedItem().toString());
+				updateProxyGUI();
+				Frame_ProxyAddPopup.dispose();
+				proxyCount++;
 			}
 			if (e.getSource() == Btn_ProxyAdd_Cancel) {
-				
+				Frame_ProxyAddPopup.dispose();
 			}
 		}
 		
 	}
 	
 	public boolean Receive(byte[] input) {
-		
+		// 과제에서는 사용하지 않음
 		return false;
 	}
 		
@@ -319,8 +340,7 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 		Label_ProxyAdd_Device.setBounds(47, 10, 60, 25);
 		proxyAddPane.add(Label_ProxyAdd_Device);
 
-		String[] str = { "Host B", "Host C" };
-
+		String[] str = { "Interface" + proxyCount };
 		ComboBox_Device = new JComboBox<>(str);
 		ComboBox_Device.setBounds(90, 10, 150, 25);
 		ComboBox_Device.addActionListener(new btnClickEvent());
@@ -371,7 +391,8 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 		Btn_ProxyAdd_Cancel.setBounds(150, 130, 100, 25);
 		Btn_ProxyAdd_Cancel.addActionListener(new btnClickEvent());
 		proxyAddPane.add(Btn_ProxyAdd_Cancel);
-
+		
+		setVisible(true);
 	}
 
 	
