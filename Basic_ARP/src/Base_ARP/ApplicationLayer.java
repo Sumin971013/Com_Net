@@ -144,6 +144,7 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 			
 			if (e.getSource() == Btn_AllDelete) { // 모두 삭제  10/19 월   
 				
+				
 				_ARPCache_Table.clear(); // ARPCache_Table clear 해준다 
 				ListModel_ARPCache.removeAllElements(); // Gui 상에서도 모두 삭제 
 				
