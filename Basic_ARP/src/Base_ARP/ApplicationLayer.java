@@ -17,6 +17,7 @@ import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.regex.Pattern;
+import java.util.StringTokenizer;
 
 import javax.swing.*;
 import javax.swing.border.*;
@@ -39,6 +40,8 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 	JComboBox<String> ComboBox_Device;
 	JFrame Frame_ProxyAddPopup;
 	JList<String> List_ARPCache;
+	
+	
 	JList<String> List_Proxy;
 	JLabel Label_IP;
 	JLabel Label_HW;
@@ -67,13 +70,13 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 	static Hashtable<String, _ARPCache_Entry> _ARPCache_Table;
 	static Hashtable<String, _Proxy_Entry> _Proxy_Table;
 	
-	public static void main(String[] args) throws UnknownHostException {		
-		m_LayerMgr.AddLayer(new ApplicationLayer("GUI"));
-		m_LayerMgr.AddLayer(new TCPLayer("TCP"));
-		m_LayerMgr.AddLayer(new IPLayer("IP"));
+	public static void main(String[] args) throws UnknownHostException {
+		m_LayerMgr.AddLayer(new NILayer("NI"));
 		m_LayerMgr.AddLayer(new ARPLayer("ARP"));
 		m_LayerMgr.AddLayer(new EthernetLayer("ETHERNET"));
-		m_LayerMgr.AddLayer(new NILayer("NI"));
+		m_LayerMgr.AddLayer(new IPLayer("IP"));
+		m_LayerMgr.AddLayer(new TCPLayer("TCP"));
+		m_LayerMgr.AddLayer(new ApplicationLayer("GUI"));
 		
 		m_LayerMgr.ConnectLayers(" NI ( *ETHERNET ( *ARP +IP ( -ARP *TCP ( *GUI ) ) ) )");
 		
@@ -103,6 +106,7 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 	// ARPCache Table의 Element를 가져와 GUI를 Update하는 함수
 	public static void updateGUI() {
 		Enumeration<String> arpKeys = _ARPCache_Table.keys();
+		
 		ListModel_ARPCache.removeAllElements();
 		while(arpKeys.hasMoreElements()) {
 			String ipKey = (String) arpKeys.nextElement();
@@ -114,6 +118,7 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 			String model = String.format("%20s%25s%15s", ipKey, macAddress, tempEntry.status);
 			ListModel_ARPCache.addElement(model);
 		}
+		
 	}
 	
 	// Button EventListener 부분
@@ -123,8 +128,27 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 		public void actionPerformed(ActionEvent e) {
 			if (e.getSource() == Btn_ItemDelete) {
 				
+				if(List_ARPCache.getSelectedValue()!=null) { // 선택 된것 삭제 => 10/19 월 
+					
+					StringTokenizer st = new StringTokenizer(List_ARPCache.getSelectedValue().toString().trim(), " ");
+					_ARPCache_Table.remove(st.nextToken());
+					ListModel_ARPCache.remove(List_ARPCache.getSelectedIndex());
+					
+					
+				}
+				
+				
+				
 			}
-			if (e.getSource() == Btn_AllDelete) {
+			
+			
+			if (e.getSource() == Btn_AllDelete) { // 모두 삭제  10/19 월   
+				
+				_ARPCache_Table.clear(); // ARPCache_Table clear 해준다 
+				ListModel_ARPCache.removeAllElements(); // Gui 상에서도 모두 삭제 
+				
+				
+				
 				
 			}
 			if (e.getSource() == Btn_ARPSend) {
@@ -136,28 +160,41 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 					System.out.println("유효하지 않은 IP 입력입니다 : " + ip_input);
 				}
 			}
+			
+			
 			if (e.getSource() == Btn_ProxyAdd) {
 				
 			}
+			
+			
 			if (e.getSource() == Btn_ProxyDelete) {
 				
 			}
+			
+			
 			if (e.getSource() == Btn_GratSend) {
 				((ARPLayer) m_LayerMgr.GetLayer("ARP")).gratMacInput = TF_HWAddress.getText();
 			}
+			
 			if (e.getSource() == Btn_Exit) {
 				System.exit(0);
 			}
+			
+			
 			if (e.getSource() == Btn_Cancel) {
 				System.exit(0);
 				dispose();
 			}
+			
 			if (e.getSource() == Btn_ProxyAdd_Ok) {
 				
 			}
+			
 			if (e.getSource() == Btn_ProxyAdd_Cancel) {
 				
 			}
+			
+			
 		}
 		
 	}
@@ -377,7 +414,6 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 	
 	@Override
 	public void SetUnderLayer(BaseLayer pUnderLayer) {
-		// TODO Auto-generated method stub
 		if (pUnderLayer == null)
 			return;
 		this.p_UnderLayer = pUnderLayer;
@@ -385,7 +421,6 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 
 	@Override
 	public void SetUpperLayer(BaseLayer pUpperLayer) {
-		// TODO Auto-generated method stub
 		if (pUpperLayer == null)
 			return;
 		this.p_aUpperLayer.add(nUpperLayerCount++, pUpperLayer);
@@ -394,13 +429,11 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 
 	@Override
 	public String GetLayerName() {
-		// TODO Auto-generated method stub
 		return pLayerName;
 	}
 
 	@Override
 	public BaseLayer GetUnderLayer() {
-		// TODO Auto-generated method stub
 		if (p_UnderLayer == null)
 			return null;
 		return p_UnderLayer;
@@ -408,7 +441,6 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 
 	@Override
 	public BaseLayer GetUpperLayer(int nindex) {
-		// TODO Auto-generated method stub
 		if (nindex < 0 || nindex > nUpperLayerCount || nUpperLayerCount < 0)
 			return null;
 		return p_aUpperLayer.get(nindex);
