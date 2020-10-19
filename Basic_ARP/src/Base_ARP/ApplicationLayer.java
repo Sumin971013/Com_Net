@@ -10,6 +10,7 @@ import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.StringTokenizer;
 import java.util.regex.Pattern;
+import java.util.StringTokenizer;
 
 import javax.swing.*;
 import javax.swing.border.*;
@@ -79,6 +80,7 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 		// Thread에 updater를 넣어 시작
 		Thread updaterThread = new Thread(updater, "updaterThread");
 		updaterThread.start();
+
 	}
 	
 	// CacheTable GUI를 지속적으로 Update하는 Runnable updater
@@ -147,9 +149,12 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 					System.out.println("유효하지 않은 IP 입력입니다 : " + ip_input);
 				}
 			}
+			
 			if (e.getSource() == Btn_ProxyAdd) {
 				ProxyAddPopUP();
 			}
+			
+			
 			if (e.getSource() == Btn_ProxyDelete) {
 				if(List_Proxy.getSelectedValue() != null) {
 					StringTokenizer st = new StringTokenizer(
@@ -161,9 +166,12 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 					Frame_ProxyAddPopup.dispose();
 				}
 			}
+			
+			
 			if (e.getSource() == Btn_GratSend) {
 				((ARPLayer) m_LayerMgr.GetLayer("ARP")).gratSend(TF_HWAddress.getText());
 			}
+			
 			if (e.getSource() == Btn_Exit) {
 				System.exit(0);
 			}
@@ -171,6 +179,7 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 				System.exit(0);
 				dispose();
 			}
+			
 			if (e.getSource() == Btn_ProxyAdd_Ok) {
 				((ARPLayer) m_LayerMgr.GetLayer("ARP")).
 				addProxy(TF_ProxyIPAddress.getText(), TF_ProxyMacAddress.getText(), 
@@ -179,9 +188,12 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 				Frame_ProxyAddPopup.dispose();
 				proxyCount++;
 			}
+			
 			if (e.getSource() == Btn_ProxyAdd_Cancel) {
 				Frame_ProxyAddPopup.dispose();
 			}
+			
+			
 		}
 		
 	}
