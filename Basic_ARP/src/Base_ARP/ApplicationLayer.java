@@ -17,6 +17,7 @@ import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.regex.Pattern;
+import java.util.StringTokenizer;
 
 import javax.swing.*;
 import javax.swing.border.*;
@@ -84,6 +85,7 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 		// Thread에 updater를 넣어 시작
 		Thread updaterThread = new Thread(updater, "updaterThread");
 		updaterThread.start();
+
 	}
 	
 	// CacheTable GUI를 지속적으로 Update하는 Runnable updater
@@ -123,8 +125,28 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 		public void actionPerformed(ActionEvent e) {
 			if (e.getSource() == Btn_ItemDelete) {
 				
+				if(List_ARPCache.getSelectedValue()!=null) { // 선택 된것 삭제 => 10/19 월 
+					
+					StringTokenizer st = new StringTokenizer(List_ARPCache.getSelectedValue().toString().trim(), " ");
+					_ARPCache_Table.remove(st.nextToken());
+					ListModel_ARPCache.remove(List_ARPCache.getSelectedIndex());
+					
+					
+				}
+				
+				
+				
 			}
-			if (e.getSource() == Btn_AllDelete) {
+			
+			
+			if (e.getSource() == Btn_AllDelete) { // 모두 삭제  10/19 월   
+				
+				
+				_ARPCache_Table.clear(); // ARPCache_Table clear 해준다 
+				ListModel_ARPCache.removeAllElements(); // Gui 상에서도 모두 삭제 
+				
+				
+
 				
 			}
 			if (e.getSource() == Btn_ARPSend) {
@@ -136,15 +158,21 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 					System.out.println("유효하지 않은 IP 입력입니다 : " + ip_input);
 				}
 			}
+			
 			if (e.getSource() == Btn_ProxyAdd) {
 				
 			}
+			
+			
 			if (e.getSource() == Btn_ProxyDelete) {
 				
 			}
+			
+			
 			if (e.getSource() == Btn_GratSend) {
 				((ARPLayer) m_LayerMgr.GetLayer("ARP")).gratMacInput = TF_HWAddress.getText();
 			}
+			
 			if (e.getSource() == Btn_Exit) {
 				System.exit(0);
 			}
@@ -152,12 +180,16 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 				System.exit(0);
 				dispose();
 			}
+			
 			if (e.getSource() == Btn_ProxyAdd_Ok) {
 				
 			}
+			
 			if (e.getSource() == Btn_ProxyAdd_Cancel) {
 				
 			}
+			
+			
 		}
 		
 	}
