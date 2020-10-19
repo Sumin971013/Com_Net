@@ -21,8 +21,9 @@ public class ARPLayer implements BaseLayer{
 	public Hashtable<String, _ARPCache_Entry> _ARPCache_Table = new Hashtable<>();
 	public Hashtable<String, _Proxy_Entry> _Proxy_Table = new Hashtable<>();
 	
-	// BroadCast Message Mac
+	// BroadCast Message Mac/IP
 	private final byte[] _BroadCast_Mac = {(byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF, (byte)0xFF};
+	private final byte[] _BroadCast_Ip = {(byte) 0x00, (byte)0x00, (byte)0x00, (byte)0x00};
 	
 	// Device's Info
 	public byte[] myIpAddress;
@@ -135,7 +136,8 @@ public class ARPLayer implements BaseLayer{
 		System.arraycopy(Header.dstMac.addr, 0, buf, 18, 6);
 		System.arraycopy(Header.dstIp.addr, 0, buf, 24, 4);
 		
-		System.arraycopy(input, 0, buf, 28, length);
+		if(length != 0)
+			System.arraycopy(input, 0, buf, 28, length);
 				
 		return buf;
 	}
@@ -178,6 +180,14 @@ public class ARPLayer implements BaseLayer{
 	
 	// Gratuitous Send
 	public boolean gratSend(String input) {
+		byte[] myMac = macToByte(input);
+		setSrcIp();
+		setSrcMac(myMac);
+		setDstIp(_BroadCast_Ip);
+		setDstMac(_BroadCast_Mac);
+		setDefaultHeader((byte) 0x01);
+		byte[] _ARP_FRAME = ObjToByte(m_sHeader, null, 0);
+		this.GetUnderLayer().Send(_ARP_FRAME, _ARP_FRAME.length);
 		
 		return false;
 	}
@@ -205,7 +215,7 @@ public class ARPLayer implements BaseLayer{
 					_ARPCache_Entry entry = _ARPCache_Table.get(ipToString(srcIp));
 					System.arraycopy(srcMac, 0, entry.addr, 0, 6);
 				}
-				else {
+				else if(!isMyGrat(srcIp) && !containsARP(ipToString(srcIp))) {
 					_ARPCache_Entry entry = new _ARPCache_Entry(srcMac,"Complete", 100);
 					_ARPCache_Table.put(ipToString(srcIp), entry);
 				}
@@ -235,6 +245,15 @@ public class ARPLayer implements BaseLayer{
 		this.GetUnderLayer().Send(replyBuf, replyBuf.length);
 	}
 	
+	// 자신이 보낸 Grat Message인지 확인하는 함수
+	public boolean isMyGrat(byte[] inputIp) {
+		for(int idx = 0; idx < 4; idx++) {
+			if(inputIp[idx] != myIpAddress[idx])
+				return false;
+		}
+		return true;
+	}
+	
 	// Proxy Table에 Proxy Entry 추가하는 함수
 	public void addProxy(String ipInput, String macInput, String name) {
 		byte[] macAddress = macToByte(macInput);
@@ -246,7 +265,6 @@ public class ARPLayer implements BaseLayer{
 	public void deleteProxy(String ip) {
 		_Proxy_Table.remove(ip);
 	}
-
 	
 	// ARP Header의 기본값들을 채워주는 함수 + opcode
 	public void setDefaultHeader(byte opcode) {
@@ -278,6 +296,12 @@ public class ARPLayer implements BaseLayer{
 	public void setSrcMac() {
 		for(int idx = 0; idx < 6; idx++) {
 			this.m_sHeader.srcMac.addr[idx] = myMacAddress[idx];
+		}
+	}
+	
+	public void setSrcMac(byte[] input) {
+		for(int idx = 0; idx < 6; idx++) {
+			this.m_sHeader.srcMac.addr[idx] = input[idx];
 		}
 	}
 	

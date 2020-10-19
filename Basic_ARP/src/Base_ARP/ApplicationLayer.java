@@ -10,7 +10,6 @@ import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.StringTokenizer;
 import java.util.regex.Pattern;
-import java.util.StringTokenizer;
 
 import javax.swing.*;
 import javax.swing.border.*;
@@ -72,6 +71,7 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 		m_LayerMgr.AddLayer(new ApplicationLayer("GUI"));
 		
 		m_LayerMgr.ConnectLayers(" NI ( *ETHERNET ( *ARP +IP ( -ARP *TCP ( *GUI ) ) ) )");
+		((NILayer) m_LayerMgr.GetLayer("NI")).SetAdapterNumber(0);
 		
 		// ARPLayer의 ARP&Proxy Table을 가져와 동기화시킨다
 		_ARPCache_Table = ((ARPLayer) m_LayerMgr.GetLayer("ARP"))._ARPCache_Table;
@@ -139,6 +139,13 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 			}
 			if (e.getSource() == Btn_AllDelete) { // 모두 삭제  10/19 월   
 				_ARPCache_Table.clear(); // ARPCache_Table clear 해준다 
+				if(List_ARPCache.getSelectedValue()!=null) { // 선택 된것 삭제 => 10/19 월 
+					StringTokenizer st = new StringTokenizer(List_ARPCache.getSelectedValue().toString().trim(), " ");
+					_ARPCache_Table.remove(st.nextToken());
+				}
+			}
+			if (e.getSource() == Btn_AllDelete) { // 모두 삭제  10/19 월   
+				_ARPCache_Table.clear(); // ARPCache_Table clear 해준다 
 			}
 			if (e.getSource() == Btn_ARPSend) {
 				String ip_input = TF_IPAddress.getText();
@@ -149,12 +156,9 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 					System.out.println("유효하지 않은 IP 입력입니다 : " + ip_input);
 				}
 			}
-			
 			if (e.getSource() == Btn_ProxyAdd) {
 				ProxyAddPopUP();
 			}
-			
-			
 			if (e.getSource() == Btn_ProxyDelete) {
 				if(List_Proxy.getSelectedValue() != null) {
 					StringTokenizer st = new StringTokenizer(
@@ -166,12 +170,9 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 					Frame_ProxyAddPopup.dispose();
 				}
 			}
-			
-			
 			if (e.getSource() == Btn_GratSend) {
 				((ARPLayer) m_LayerMgr.GetLayer("ARP")).gratSend(TF_HWAddress.getText());
 			}
-			
 			if (e.getSource() == Btn_Exit) {
 				System.exit(0);
 			}
@@ -179,7 +180,6 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 				System.exit(0);
 				dispose();
 			}
-			
 			if (e.getSource() == Btn_ProxyAdd_Ok) {
 				((ARPLayer) m_LayerMgr.GetLayer("ARP")).
 				addProxy(TF_ProxyIPAddress.getText(), TF_ProxyMacAddress.getText(), 
@@ -188,12 +188,9 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 				Frame_ProxyAddPopup.dispose();
 				proxyCount++;
 			}
-			
 			if (e.getSource() == Btn_ProxyAdd_Cancel) {
 				Frame_ProxyAddPopup.dispose();
 			}
-			
-			
 		}
 		
 	}

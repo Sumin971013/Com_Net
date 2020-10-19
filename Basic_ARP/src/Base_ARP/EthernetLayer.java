@@ -61,7 +61,7 @@ public class EthernetLayer implements BaseLayer {
 		byte[] bytes;
 		m_sHeader.enet_data = input;
 		
-		if(input[7] == 0x01 && input[7] == 0x02) {
+		if(input[7] == 0x01 || input[7] == 0x02) {
 			// Opcode 0x0001
 			// ARP Request or Reply Message => Protocol Type 0x0806
 			m_sHeader.enet_type[0] = (byte) 0x08;
