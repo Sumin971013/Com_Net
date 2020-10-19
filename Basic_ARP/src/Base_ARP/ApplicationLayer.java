@@ -40,8 +40,6 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 	JComboBox<String> ComboBox_Device;
 	JFrame Frame_ProxyAddPopup;
 	JList<String> List_ARPCache;
-	
-	
 	JList<String> List_Proxy;
 	JLabel Label_IP;
 	JLabel Label_HW;
@@ -87,6 +85,7 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 		// Thread에 updater를 넣어 시작
 		Thread updaterThread = new Thread(updater, "updaterThread");
 		updaterThread.start();
+
 	}
 	
 	// CacheTable GUI를 지속적으로 Update하는 Runnable updater
@@ -106,7 +105,6 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 	// ARPCache Table의 Element를 가져와 GUI를 Update하는 함수
 	public static void updateGUI() {
 		Enumeration<String> arpKeys = _ARPCache_Table.keys();
-		
 		ListModel_ARPCache.removeAllElements();
 		while(arpKeys.hasMoreElements()) {
 			String ipKey = (String) arpKeys.nextElement();
@@ -118,7 +116,6 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 			String model = String.format("%20s%25s%15s", ipKey, macAddress, tempEntry.status);
 			ListModel_ARPCache.addElement(model);
 		}
-		
 	}
 	
 	// Button EventListener 부분
@@ -149,7 +146,7 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 				ListModel_ARPCache.removeAllElements(); // Gui 상에서도 모두 삭제 
 				
 				
-				
+
 				
 			}
 			if (e.getSource() == Btn_ARPSend) {
@@ -161,7 +158,6 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 					System.out.println("유효하지 않은 IP 입력입니다 : " + ip_input);
 				}
 			}
-			
 			
 			if (e.getSource() == Btn_ProxyAdd) {
 				
@@ -180,8 +176,6 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 			if (e.getSource() == Btn_Exit) {
 				System.exit(0);
 			}
-			
-			
 			if (e.getSource() == Btn_Cancel) {
 				System.exit(0);
 				dispose();
