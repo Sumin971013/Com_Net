@@ -71,6 +71,7 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 		m_LayerMgr.AddLayer(new ApplicationLayer("GUI"));
 		
 		m_LayerMgr.ConnectLayers(" NI ( *ETHERNET ( *ARP +IP ( -ARP *TCP ( *GUI ) ) ) )");
+		((NILayer) m_LayerMgr.GetLayer("NI")).SetAdapterNumber(0);
 		
 		// ARPLayer의 ARP&Proxy Table을 가져와 동기화시킨다
 		_ARPCache_Table = ((ARPLayer) m_LayerMgr.GetLayer("ARP"))._ARPCache_Table;
@@ -79,6 +80,7 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 		// Thread에 updater를 넣어 시작
 		Thread updaterThread = new Thread(updater, "updaterThread");
 		updaterThread.start();
+
 	}
 	
 	// CacheTable GUI를 지속적으로 Update하는 Runnable updater
@@ -130,6 +132,13 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 		@Override
 		public void actionPerformed(ActionEvent e) {
 			if (e.getSource() == Btn_ItemDelete) {
+				if(List_ARPCache.getSelectedValue()!=null) { // 선택 된것 삭제 => 10/19 월 
+					StringTokenizer st = new StringTokenizer(List_ARPCache.getSelectedValue().toString().trim(), " ");
+					_ARPCache_Table.remove(st.nextToken());
+				}
+			}
+			if (e.getSource() == Btn_AllDelete) { // 모두 삭제  10/19 월   
+				_ARPCache_Table.clear(); // ARPCache_Table clear 해준다 
 				if(List_ARPCache.getSelectedValue()!=null) { // 선택 된것 삭제 => 10/19 월 
 					StringTokenizer st = new StringTokenizer(List_ARPCache.getSelectedValue().toString().trim(), " ");
 					_ARPCache_Table.remove(st.nextToken());

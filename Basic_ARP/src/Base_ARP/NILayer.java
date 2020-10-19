@@ -32,7 +32,6 @@ public class NILayer implements BaseLayer {
 		m_pAdapterList = new ArrayList<PcapIf>();
 		m_iNumAdapter = 0;
 		SetAdapterList();
-//		SetAdapterNumber(0);
 	}
 
 	public void PacketStartDriver() {
