@@ -1,15 +1,9 @@
 package Base_ARP;
 
-import java.io.ByteArrayOutputStream;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.io.IOException;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 
 public class EthernetLayer implements BaseLayer {
@@ -53,24 +47,12 @@ public class EthernetLayer implements BaseLayer {
 		pLayerName = pName;
 		ResetHeader();
 		try {
-			myEnetAddress = ((ARPLayer) this.GetUpperLayer(0)).getLocalMacAddress();
+			myEnetAddress = getLocalMacAddress();
 		} catch (UnknownHostException | SocketException e) {
 			e.printStackTrace();
 		}
 	}
-	
-	// Local Mac Address 가져오는 함수
-	 public byte[] getLocalMacAddress() throws UnknownHostException, SocketException {
-			InetAddress ip;
-
-			ip = InetAddress.getLocalHost();
-			NetworkInterface network = NetworkInterface.getByInetAddress(ip);
-			byte[] mac = network.getHardwareAddress();
-			
-			return mac;
-	 }
-
-	
+		
 	private void ResetHeader() {
 		m_sHeader = new _ETHERNET_HEADER();
 	}
@@ -81,7 +63,7 @@ public class EthernetLayer implements BaseLayer {
 		
 		if(input[7] == 0x01 && input[7] == 0x02) {
 			// Opcode 0x0001
-			// ARP Request Message => Protocol Type 0x0806
+			// ARP Request or Reply Message => Protocol Type 0x0806
 			m_sHeader.enet_type[0] = (byte) 0x08;
 			m_sHeader.enet_type[1] = (byte) 0x06;
 		}
@@ -101,12 +83,6 @@ public class EthernetLayer implements BaseLayer {
 			return false;
 	}
 	
-	// EthernetHeader 의 Addr을 ARP Header의 주소로 채운다
-	public void setEthernetHeader(byte[] input) {
-		System.arraycopy(input, 8, m_sHeader.enet_srcaddr.addr, 0, 6);
-		System.arraycopy(input, 18, m_sHeader.enet_dstaddr.addr, 0, 6);
-	}	
-
 	public boolean Receive(byte[] input) {
 		byte[] buf;
 		
@@ -115,10 +91,12 @@ public class EthernetLayer implements BaseLayer {
 			return false;
 		
 		if (input[12] == 0x08 && input[13] == 0x06) {
+			// Receive한 Message가 ARP Message인 경우
 			buf = removeEthernetHeader(input, input.length);
 			this.GetUpperLayer(0).Receive(buf);
 		}
 		else if (input[12] == 0x08 && input[13] == 0x00) {
+			// ARP Message 아닌 경우 IPLayer로 올린다
 			buf = removeEthernetHeader(input, input.length);
 			this.GetUpperLayer(1).Receive(buf);
 		}
@@ -127,6 +105,12 @@ public class EthernetLayer implements BaseLayer {
 		
 		return true;
 	}
+	
+	// EthernetHeader 의 Addr을 ARP Header의 주소로 채운다
+	public void setEthernetHeader(byte[] input) {
+		System.arraycopy(input, 8, m_sHeader.enet_srcaddr.addr, 0, 6);
+		System.arraycopy(input, 18, m_sHeader.enet_dstaddr.addr, 0, 6);
+	}	
 	
 	// Ethernet Header를 Packet에서 제거해주는 함수
 	private byte[] removeEthernetHeader(byte[] input, int length) {
@@ -168,6 +152,17 @@ public class EthernetLayer implements BaseLayer {
 
 		return buf;
 	}
+	
+	// Local Mac Address 가져오는 함수
+	 public byte[] getLocalMacAddress() throws UnknownHostException, SocketException {
+			InetAddress ip;
+
+			ip = InetAddress.getLocalHost();
+			NetworkInterface network = NetworkInterface.getByInetAddress(ip);
+			byte[] mac = network.getHardwareAddress();
+			
+			return mac;
+	 }
 
 	@Override
 	public void SetUnderLayer(BaseLayer pUnderLayer) {
