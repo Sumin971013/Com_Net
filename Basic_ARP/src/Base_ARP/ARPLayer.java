@@ -201,8 +201,14 @@ public class ARPLayer implements BaseLayer{
 			}
 			// ARP Request가 자신과 상관없는 Broadcast or Gratuitous인 경우
 			else {
-				_ARPCache_Entry entry = new _ARPCache_Entry(srcMac,"Complete", 100);
-				_ARPCache_Table.put(ipToString(srcIp), entry);
+				if(_ARPCache_Table.containsKey(ipToString(srcIp))) {
+					_ARPCache_Entry entry = _ARPCache_Table.get(ipToString(srcIp));
+					System.arraycopy(srcMac, 0, entry.addr, 0, 6);
+				}
+				else {
+					_ARPCache_Entry entry = new _ARPCache_Entry(srcMac,"Complete", 100);
+					_ARPCache_Table.put(ipToString(srcIp), entry);
+				}
 			}
 		}
 		else if(input[7] == 0x02) {

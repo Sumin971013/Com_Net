@@ -130,10 +130,13 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 		@Override
 		public void actionPerformed(ActionEvent e) {
 			if (e.getSource() == Btn_ItemDelete) {
-				
+				if(List_ARPCache.getSelectedValue()!=null) { // 선택 된것 삭제 => 10/19 월 
+					StringTokenizer st = new StringTokenizer(List_ARPCache.getSelectedValue().toString().trim(), " ");
+					_ARPCache_Table.remove(st.nextToken());
+				}
 			}
-			if (e.getSource() == Btn_AllDelete) {
-				
+			if (e.getSource() == Btn_AllDelete) { // 모두 삭제  10/19 월   
+				_ARPCache_Table.clear(); // ARPCache_Table clear 해준다 
 			}
 			if (e.getSource() == Btn_ARPSend) {
 				String ip_input = TF_IPAddress.getText();
@@ -159,7 +162,7 @@ public class ApplicationLayer extends JFrame implements BaseLayer {
 				}
 			}
 			if (e.getSource() == Btn_GratSend) {
-				((ARPLayer) m_LayerMgr.GetLayer("ARP")).gratMacInput = TF_HWAddress.getText();
+				((ARPLayer) m_LayerMgr.GetLayer("ARP")).gratSend(TF_HWAddress.getText());
 			}
 			if (e.getSource() == Btn_Exit) {
 				System.exit(0);
